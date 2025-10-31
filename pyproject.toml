@@ -1,0 +1,9 @@
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+select = ["E","F","I","UP","B","N","ANN","C4"]  # erreurs, imports, modernisation, bugs, noms, annotations, etc.
+ignore = ["ANN101","ANN102"]  # ignorer annotations self/cls
+target-version = "py311"

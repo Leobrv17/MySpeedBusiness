@@ -1,0 +1,44 @@
+/* Palette : Rouge #C01818, Noir #111111, Blanc #FFFFFF */
+
+QMainWindow {
+    background: #FFFFFF;
+}
+
+QMenuBar {
+    background: #FFFFFF;
+    color: #111111;
+}
+
+QMenuBar::item:selected {
+    background: #C01818;
+    color: #FFFFFF;
+}
+
+QToolBar {
+    background: #FFFFFF;
+    border-bottom: 1px solid #E6E6E6;
+}
+
+QStatusBar {
+    background: #FFFFFF;
+    color: #111111;
+    border-top: 1px solid #E6E6E6;
+}
+
+QPushButton {
+    background: #C01818;
+    color: #FFFFFF;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+}
+
+QPushButton::disabled {
+    background: #A9A9A9;
+}
+
+QTableView {
+    gridline-color: #E6E6E6;
+    selection-background-color: #C01818;
+    selection-color: #FFFFFF;
+}
