@@ -42,3 +42,58 @@ QTableView {
     selection-background-color: #C01818;
     selection-color: #FFFFFF;
 }
+
+
+QTabWidget::pane {
+    border: 1px solid #E6E6E6;
+    top: 1px; /* colle le contenu aux tabs */
+    background: #FFFFFF;
+}
+
+QTabBar::tab {
+    background: #F7F7F7;
+    color: #111111;
+    border: 1px solid #E6E6E6;
+    border-bottom: none;            /* pour un effet "onglet" */
+    padding: 8px 14px;
+    margin-right: 4px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    min-width: 110px;               /* lisible */
+}
+
+QTabBar::tab:selected {
+    background: #C01818;            /* rouge sélectionné */
+    color: #FFFFFF;
+    border-color: #C01818;
+}
+
+QTabBar::tab:hover:!selected {
+    background: #FFEAEA;            /* hover rouge clair */
+    color: #C01818;
+    border-color: #C01818;
+}
+
+QTabBar::tab:!selected {
+    background: #F2F2F2;
+    color: #111111;
+}
+
+/* Si la barre de tabs est en bas (rare), inverser la bordure */
+QTabWidget::tab-bar:bottom QTabBar::tab {
+    border-top: 1px solid #E6E6E6;
+    border-bottom: 1px solid transparent;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+/* Enlève l'anneau bleu macOS autour de widgets focus si gênant */
+*:focus { outline: none; }
+
+/* Déjà présent mais on rappelle la sélection des tableaux */
+QTableView, QTableWidget {
+    selection-background-color: #C01818;
+    selection-color: #FFFFFF;
+}
