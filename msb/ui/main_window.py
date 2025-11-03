@@ -13,8 +13,7 @@ from msb.services.export_service import ExportService
 from msb.services.persistence import Persistence
 from msb.ui.dialogs.new_event_dialog import NewEventDialog
 from msb.ui.pages.participants_page import ParticipantsPage
-from msb.ui.pages.sessions_page import SessionsPage
-from msb.ui.pages.tables_page import TablesPage
+from msb.ui.pages.settings_page import SettingsPage
 from msb.ui.pages.plan_page import PlanPage
 
 log = logging.getLogger(__name__)
@@ -37,13 +36,11 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
 
         self.page_participants = ParticipantsPage(self.persistence, on_ratio_changed=self._update_lead_ratio)
-        self.page_sessions = SessionsPage(self.persistence, on_changed=self._on_params_changed)
-        self.page_tables = TablesPage(self.persistence, on_ratio_changed=self._update_lead_ratio)
+        self.page_settings = SettingsPage(self.persistence, on_changed=self._on_params_changed)
         self.page_plan = PlanPage(self.persistence)
 
         self.tabs.addTab(self.page_participants, "Participants")
-        self.tabs.addTab(self.page_sessions, "Sessions")
-        self.tabs.addTab(self.page_tables, "Tables")
+        self.tabs.addTab(self.page_settings, "Settings")
         self.tabs.addTab(self.page_plan, "Plan de table")
 
         # StatusBar
@@ -142,8 +139,7 @@ class MainWindow(QMainWindow):
         self.lbl_ratio.setText("Chefs de table: 0/0")
         # vider les pages
         self.page_participants.reload()
-        self.page_sessions.load_from_event()
-        self.page_tables.load_from_event()
+        self.page_settings.load_from_event()
         self.page_plan.clear_views()
 
     def _after_open_or_create(self):
@@ -151,8 +147,7 @@ class MainWindow(QMainWindow):
         self.lbl_event.setText(f"Événement: {info['name']}")
         # charger les pages
         self.page_participants.reload()
-        self.page_sessions.load_from_event()
-        self.page_tables.load_from_event()
+        self.page_settings.load_from_event()
         self.page_plan.load_existing_plan()
         self._update_lead_ratio()
 
@@ -163,6 +158,8 @@ class MainWindow(QMainWindow):
         try:
             leads, total = self.persistence.count_leads()
             self.lbl_ratio.setText(f"Chefs de table: {leads}/{total}")
-            self.page_tables.update_ratio_label_from_db()
+            if hasattr(self, "page_settings"):
+                self.page_settings.load_from_event()
         except RuntimeError:
             self.lbl_ratio.setText("Chefs de table: 0/0")
+
