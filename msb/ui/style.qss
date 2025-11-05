@@ -97,3 +97,45 @@ QTableView, QTableWidget {
     selection-background-color: #C01818;
     selection-color: #FFFFFF;
 }
+
+/* ============================================================
+   ✅ QCheckBox — style rouge, moderne et simple
+   ============================================================ */
+
+QCheckBox {
+    spacing: 6px;
+    font-size: 14px;
+    color: #111111;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 2px solid #C01818;      /* contour rouge */
+    background-color: #FFFFFF;      /* fond blanc */
+    transition: all 0.2s ease;
+}
+
+QCheckBox::indicator:hover {
+    background-color: #FFF0F0;      /* rosé léger au survol */
+    border-color: #E53E3E;          /* rouge un peu plus clair */
+}
+
+/* quand la case est cochée */
+QCheckBox::indicator:checked {
+    background-color: #C01818;      /* rouge plein */
+    border-color: #C01818;
+    image: none;                    /* on garde la coche native de Qt */
+}
+
+QCheckBox::indicator:checked:hover {
+    background-color: #E53E3E;      /* rouge clair survolé */
+    border-color: #E53E3E;
+}
+
+/* désactivée */
+QCheckBox::indicator:disabled {
+    border-color: #CCCCCC;
+    background: #F2F2F2;
+}
