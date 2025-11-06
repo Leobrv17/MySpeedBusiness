@@ -1,0 +1,120 @@
+/* ============================================================
+   🌙 Thème sombre — MySpeedBisness
+   ============================================================ */
+
+QMainWindow, QWidget {
+    background-color: #121212;
+    color: #F5F5F5;
+}
+
+QMenuBar, QMenu {
+    background-color: #1E1E1E;
+    color: #FFFFFF;
+}
+
+QMenu::item:selected {
+    background-color: #C01818;
+    color: #FFFFFF;
+}
+
+QStatusBar {
+    background-color: #1A1A1A;
+    color: #FFFFFF;
+    border-top: 1px solid #333333;
+}
+
+/* ---- Boutons ---- */
+QPushButton {
+    background-color: #C01818;
+    color: #FFFFFF;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+}
+
+QPushButton:hover {
+    background-color: #E53E3E;
+}
+
+QPushButton:disabled {
+    background-color: #555555;
+    color: #AAAAAA;
+}
+
+/* ---- Tabs ---- */
+QTabWidget::pane {
+    border: 1px solid #333333;
+    top: -1px;
+}
+
+QTabBar::tab {
+    background: #1E1E1E;
+    color: #CCCCCC;
+    border: 1px solid #333333;
+    padding: 8px 14px;
+    margin-right: 4px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+QTabBar::tab:selected {
+    background: #C01818;
+    color: #FFFFFF;
+    border-color: #C01818;
+}
+
+QTabBar::tab:hover:!selected {
+    background: #2C2C2C;
+    color: #FFFFFF;
+}
+
+/* ---- TableView ---- */
+QTableView {
+    gridline-color: #333333;
+    selection-background-color: #C01818;
+    selection-color: #FFFFFF;
+    background-color: #1A1A1A;
+    color: #FFFFFF;
+    alternate-background-color: #202020;
+}
+
+/* ---- CheckBox ---- */
+QCheckBox {
+    spacing: 6px;
+    color: #F5F5F5;
+    font-size: 14px;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 2px solid #C01818;
+    background: #1A1A1A;
+}
+
+QCheckBox::indicator:hover {
+    border-color: #E53E3E;
+    background: #2A2A2A;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #C01818;
+    border-color: #C01818;
+}
+
+QCheckBox::indicator:checked:hover {
+    background-color: #E53E3E;
+}
+
+/* ---- Barre d’outils ---- */
+QToolBar {
+    background-color: #1E1E1E;
+    border-bottom: 1px solid #333333;
+}
+
+/* ---- Messages ---- */
+QMessageBox {
+    background-color: #1E1E1E;
+    color: #FFFFFF;
+}
