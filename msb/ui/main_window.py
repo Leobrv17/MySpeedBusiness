@@ -152,6 +152,12 @@ class MainWindow(QMainWindow):
         self._update_lead_ratio()
 
     def _on_params_changed(self):
+        # Rafraîchir libellé d'événement (nom) + ratio chefs
+        try:
+            info = self.persistence.get_event_info()
+            self.lbl_event.setText(f"Événement: {info['name']}")
+        except RuntimeError:
+            pass
         self._update_lead_ratio()
 
     def _update_lead_ratio(self):

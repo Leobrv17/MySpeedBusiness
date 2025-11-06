@@ -195,10 +195,10 @@ class Persistence:
             plan[r.session_index][r.table_index].append(r.participant_id)
         return plan
 
-def update_event_general(self, *, name=None, date_start=None, date_end=None):
-    self._require()
-    with self.session_scope() as s:
-        evt = s.get(EventORM, self.event_id)
-        if name is not None: evt.name = str(name).strip()
-        if date_start is not None: evt.date_start = date_start
-        if date_end is not None: evt.date_end = date_end
+    def update_event_general(self, *, name=None, date_start=None, date_end=None):
+        self._require()
+        with self.session_scope() as s:
+            evt = s.get(EventORM, self.event_id)
+            if name is not None: evt.name = str(name).strip()
+            if date_start is not None: evt.date_start = date_start
+            if date_end is not None: evt.date_end = date_end

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from math import ceil, floor
-from PySide6.QtCore import QDateTime
+from PySide6.QtCore import QDateTime, QTimer
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QPushButton,
     QLineEdit, QDateTimeEdit, QSpinBox, QCheckBox, QMessageBox, QButtonGroup
@@ -94,10 +94,18 @@ class SettingsPage(QWidget):
         hb.addWidget(self.info); hb.addStretch(1); hb.addWidget(self.btn_auto)
         root.addLayout(hb)
 
+        self._loading = False
+
+        self._general_timer = QTimer(self)
+        self._general_timer.setSingleShot(True)
+        self._general_timer.setInterval(250)
+        self._general_timer.timeout.connect(self._apply_general)
+
         # ---------- Signals (save on change) ----------
-        self.ev_name.editingFinished.connect(self._apply_general)
-        self.ev_start.dateTimeChanged.connect(self._apply_general)
-        self.ev_end.dateTimeChanged.connect(self._apply_general)
+        self.ev_name.textEdited.connect(self._schedule_apply_general)  # ✅ applique après 250ms de pause
+        self.ev_name.editingFinished.connect(self._apply_general)  # ✅ filet de sécurité si on sort du champ
+        self.ev_start.dateTimeChanged.connect(self._schedule_apply_general)  # ✅ idem pour la date
+        self.ev_end.dateTimeChanged.connect(self._schedule_apply_general)
 
         for w in (self.num_tables, self.cap_min, self.cap_max, self.session_count, self.dur, self.trans):
             w.valueChanged.connect(self._apply_sessions)
@@ -110,6 +118,7 @@ class SettingsPage(QWidget):
 
     # --------- Load / Apply ----------
     def load_from_event(self):
+        self._loading = True
         try:
             info = self.p.get_event_info()
         except RuntimeError:
@@ -160,20 +169,8 @@ class SettingsPage(QWidget):
             except RuntimeError:
                 pass
 
+        self._loading = False
         self._update_info()
-
-    # Général
-    def _apply_general(self):
-        try:
-            self.p.update_event_general(
-                name=self.ev_name.text().strip(),
-                date_start=self.ev_start.dateTime().toPython(),
-                date_end=self.ev_end.dateTime().toPython(),
-            )
-        except RuntimeError:
-            return
-        self._update_info()
-        if self.on_changed: self.on_changed()
 
     # Sessions
     def _apply_sessions(self):
@@ -311,3 +308,24 @@ class SettingsPage(QWidget):
             f"Tables (chefs): {T} | Capacité ≈ {k} (min-max {cap_min}-{cap_max})\n"
             f"Sessions: {S} × ({dur}+{trans} min) | Règle: {'Exclusivité' if rule=='exclusivity' else 'Couverture'}"
         )
+
+    def _schedule_apply_general(self):
+        if self._loading:
+            return
+        self._general_timer.start()  # applique dans 250ms
+
+    def _apply_general(self):
+        if self._loading:
+            return
+        try:
+            self.p.update_event_general(
+                name=self.ev_name.text().strip(),
+                date_start=self.ev_start.dateTime().toPython(),
+                date_end=self.ev_end.dateTime().toPython(),
+            )
+        except RuntimeError:
+            return
+        self._update_info()
+        if self.on_changed:
+            self.on_changed()
+
