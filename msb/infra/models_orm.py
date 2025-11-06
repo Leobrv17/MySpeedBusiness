@@ -22,6 +22,10 @@ class EventORM(Base):
     session_duration_minutes: Mapped[int] = mapped_column(Integer, default=10)
     transition_minutes: Mapped[int] = mapped_column(Integer, default=2)
 
+    rule_priority: Mapped[str] = mapped_column(String(20), default="exclusivity")  # "exclusivity" ou "coverage"
+    pause_count: Mapped[int] = mapped_column(Integer, default=0)
+    pause_minutes: Mapped[int] = mapped_column(Integer, default=0)
+
     participants: Mapped[list["ParticipantORM"]] = relationship(
         back_populates="event", cascade="all, delete-orphan"
     )
