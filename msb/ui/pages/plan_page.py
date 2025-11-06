@@ -1,8 +1,11 @@
 from __future__ import annotations
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QTabWidget, QTableWidget, QTableWidgetItem, QMessageBox
-from PySide6.QtCore import Qt
 from msb.services.persistence import Persistence
 from msb.services.planner import Planner
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QPushButton, QTabWidget, QTableWidget, QTableWidgetItem,
+    QMessageBox, QGroupBox, QHBoxLayout, QLabel, QDialog, QDialogButtonBox, QTextEdit
+)
+from PySide6.QtCore import Qt
 
 class PlanPage(QWidget):
     def __init__(self, persistence: Persistence):
@@ -22,8 +25,40 @@ class PlanPage(QWidget):
         self.tabs.addTab(self.tab_by_participant, "Vue par participant")
         v.addWidget(self.tabs)
 
+        box = QGroupBox("Statut du plan", self)
+        hb = QHBoxLayout(box)
+
+        self.lbl_pairs_repeat = QLabel("Paires en doublon: 0", self)
+        self.lbl_pairs_never = QLabel("Paires jamais rencontrées: 0", self)
+
+        self.btn_show_repeat = QPushButton("Voir les doublons", self)
+        self.btn_show_never = QPushButton("Voir les paires jamais rencontrées", self)
+
+        self.btn_show_repeat.clicked.connect(self._show_repeat_pairs)
+        self.btn_show_never.clicked.connect(self._show_never_pairs)
+
+        hb.addWidget(self.lbl_pairs_repeat)
+        hb.addSpacing(12)
+        hb.addWidget(self.btn_show_repeat)
+        hb.addSpacing(24)
+        hb.addWidget(self.lbl_pairs_never)
+        hb.addSpacing(12)
+        hb.addWidget(self.btn_show_never)
+        hb.addStretch(1)
+
+        v.addWidget(box)
+
+        # caches pour les listes détaillées
+        self._last_pairs_repeat = []  # list[tuple[int,int]]
+        self._last_pairs_never = []  # list[tuple[int,int]]
+
     def clear_views(self):
-        self.tab_by_table.clear(); self.tab_by_participant.clear()
+        self.tab_by_table.clear();
+        self.tab_by_participant.clear()
+        self._last_pairs_repeat = [];
+        self._last_pairs_never = []
+        self.lbl_pairs_repeat.setText("Paires en doublon: 0")
+        self.lbl_pairs_never.setText("Paires jamais rencontrées: 0")
 
     def load_existing_plan(self):
         try:
@@ -31,59 +66,98 @@ class PlanPage(QWidget):
         except RuntimeError:
             plan = []
         self.render_plan(plan)
+        self._update_stats_panel(plan)
 
     def generate_plan(self):
+        from PySide6.QtWidgets import QMessageBox
+
+        # 1) Charger contexte
         try:
             info = self.p.get_event_info()
             rows = list(self.p.list_participants())
         except RuntimeError:
-            QMessageBox.warning(self, "Aucun événement", "Créez/ouvrez une réunion d'abord.");
+            QMessageBox.warning(self, "Aucun événement", "Créez/ouvrez une réunion d'abord.")
             return
 
+        N = len(rows)
+        if N == 0:
+            QMessageBox.information(self, "Aucun participant", "Ajoutez des participants avant de générer.")
+            return
+
+        T = max(1, info.get("num_tables") or 1)
+
+        # 2) Exiger 1 chef par table avant génération
         leads = [r for r in rows if r.is_table_lead]
-        rot = [r for r in rows if not r.is_table_lead]
-        T = len(leads)
-        if T == 0:
-            QMessageBox.warning(self, "Aucun chef de table", "Sélectionnez au moins un chef de table.");
+        if len(leads) != T:
+            QMessageBox.warning(
+                self, "Chefs de table requis",
+                f"Il faut sélectionner exactement {T} chef(s) de table (actuellement {len(leads)})."
+            )
             return
 
-        # Capacité cible bornée 5..10 (chef inclus)
-        cap_min = max(5, info["cap_min"] or 5)
-        cap_max = min(10, max(cap_min, info["cap_max"] or 10))
-        R = len(rot)
-        target_k = int(round(R / max(1, T) + 1))  # +1 car chef
-        k = max(cap_min, min(cap_max, target_k))
-        rot_per_table = max(1, k - 1)
+        # 3) Faisabilité: tout le monde doit être assis, 5..10 par table
+        # => condition nécessaire: 5*T <= N <= 10*T
+        if N < 5 * T:
+            QMessageBox.warning(
+                self, "Capacité insuffisante",
+                f"Avec {T} tables, il faut au moins {5 * T} participants (5 par table). "
+                f"Participants actuels: {N}."
+            )
+            return
+        if N > 10 * T:
+            QMessageBox.warning(
+                self, "Capacité dépassée",
+                f"Avec {T} tables, on ne peut pas dépasser {10 * T} participants (10 par table). "
+                f"Participants actuels: {N}. Augmentez le nombre de tables."
+            )
+            return
 
-        # Sessions S (S ≤ T, et borne Social Golfer approximative)
-        S = max(1, min(info["session_count"] or 1, T))
-        if k >= 3 and R > 1:
-            r_sg = (R - 1) // (k - 2)
-            S = min(S, max(1, r_sg))
+        # 4) Calcul des capacités exactes par table (5..10) avec somme == N
+        # Stratégie: démarrer à 5 partout, puis distribuer le reste jusqu'à atteindre N (sans dépasser 10)
+        caps = [5] * T
+        remaining = N - 5 * T  # nombre de places à répartir pour atteindre N
+        idx = 0
+        while remaining > 0:
+            if caps[idx] < 10:
+                caps[idx] += 1
+                remaining -= 1
+            idx = (idx + 1) % T
 
-        # Nouveau planner: renvoie seulement les rotatifs par table
-        planner_plan = self.planner.build_plan(
-            leads=[p.id for p in leads],
-            rotators=[p.id for p in rot],
+        # 5) Préparer les IDs chefs fixes et les autres personnes
+        #    (1 chef par table; on aligne les chefs aux tables 0..T-1 selon l'ordre actuel)
+        lead_ids = [p.id for p in leads[:T]]
+        fixed_lead_set = set(lead_ids)
+        rotator_ids = [p.id for p in rows if p.id not in fixed_lead_set]
+
+        # 6) Récupérer priorité & sessions
+        rule = (info.get("rule_priority") or "exclusivity").lower()  # "coverage" | "exclusivity"
+        S = max(1, info.get("session_count") or 1)
+
+        # 7) Générer le plan via le planner
+        #    Planner attendu: build_plan(num_tables, sessions, table_capacities, fixed_leads, priority, people)
+        plan = self.planner.build_plan(
+            num_tables=T,
             sessions=S,
-            rot_per_table=rot_per_table,
-            seed=None,
+            table_capacities=caps,
+            fixed_leads=lead_ids,  # chefs fixes (optionnels, ici requis et fournis)
+            priority=rule,
+            people=rotator_ids
         )
 
-        # Construire le plan "complet" en ajoutant le chef fixe en premier dans chaque table
-        full_plan: list[list[list[int]]] = []
-        for s_idx in range(S):
-            session_tables: list[list[int]] = []
-            for t_idx in range(T):
-                row_ids = [leads[t_idx].id]  # chef en tête
-                if s_idx < len(planner_plan):
-                    row_ids.extend(planner_plan[s_idx][t_idx])
-                session_tables.append(row_ids)
-            full_plan.append(session_tables)
+        # 8) Sauvegarde en DB + rendu + stats
+        self.p.save_plan(plan)
+        self.render_plan(plan)
+        if hasattr(self, "_update_stats_panel"):
+            self._update_stats_panel(plan)
 
-        # Sauvegarde DB et rendu
-        self.p.save_plan(full_plan)
-        self.render_plan(full_plan)
+        QMessageBox.information(
+            self, "Plan généré",
+            f"Plan de {S} session(s) généré avec {T} table(s).\n"
+            f"Capacités par table: {caps}\n"
+            f"Priorité: {'Couverture' if rule == 'coverage' else 'Exclusivité'}"
+        )
+
+    # ou raw_plan selon ce que tu passes à render_plan
 
     def render_plan(self, plan):
         if not plan:
@@ -129,3 +203,93 @@ class PlanPage(QWidget):
         self.tab_by_participant.setVerticalHeaderLabels([f"{p.first_name} {p.last_name}" for p in ordered])
         self.tab_by_participant.setHorizontalHeaderLabels([f"S{i+1}" for i in range(S)])
         self.tab_by_participant.resizeColumnsToContents(); self.tab_by_participant.resizeRowsToContents()
+
+    def _compute_plan_stats(self, plan):
+        """
+        Retourne:
+          - repeated: list de paires (pid1,pid2) rencontrées >1 fois
+          - never: list de paires (pid1,pid2) jamais rencontrées
+        """
+        if not plan:
+            return [], []
+
+        # Liste des participants impliqués dans le plan (depuis la DB pour être sûr)
+        try:
+            parts = list(self.p.list_participants())
+        except RuntimeError:
+            parts = []
+        ids = [p.id for p in parts]
+        id_index = {pid: i for i, pid in enumerate(ids)}
+        n = len(ids)
+        if n <= 1:
+            return [], []
+
+        # matrice comptant les rencontres par paire
+        meets = [[0]*n for _ in range(n)]
+
+        # pour chaque session/table, incrémente les rencontres entre tous les co-présents
+        for tables in plan:
+            for lst in tables:
+                # lst = [chef?, rotatifs...] ; compte toutes les combinaisons 2 à 2
+                for i in range(len(lst)):
+                    for j in range(i+1, len(lst)):
+                        a, b = lst[i], lst[j]
+                        ia = id_index.get(a); ib = id_index.get(b)
+                        if ia is None or ib is None:
+                            continue
+                        meets[ia][ib] += 1
+                        meets[ib][ia] += 1
+
+        repeated = []
+        never = []
+        for i in range(n):
+            for j in range(i+1, n):
+                if meets[i][j] == 0:
+                    never.append((ids[i], ids[j]))
+                elif meets[i][j] > 1:
+                    repeated.append((ids[i], ids[j]))
+
+        return repeated, never
+
+    def _update_stats_panel(self, plan):
+        rep, nev = self._compute_plan_stats(plan)
+        self._last_pairs_repeat = rep
+        self._last_pairs_never = nev
+        self.lbl_pairs_repeat.setText(f"Paires en doublon: {len(rep)}")
+        self.lbl_pairs_never.setText(f"Paires jamais rencontrées: {len(nev)}")
+
+    def _show_repeat_pairs(self):
+        self._show_pairs_dialog(self._last_pairs_repeat, "Paires en doublon (>1 fois)")
+
+    def _show_never_pairs(self):
+        self._show_pairs_dialog(self._last_pairs_never, "Paires jamais rencontrées")
+
+    def _show_pairs_dialog(self, pairs, title):
+        # map id -> participant
+        try:
+            parts = {p.id: p for p in self.p.list_participants()}
+        except RuntimeError:
+            parts = {}
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(title)
+        layout = QVBoxLayout(dlg)
+        txt = QTextEdit(dlg); txt.setReadOnly(True)
+
+        if not pairs:
+            txt.setPlainText("Aucune paire.")
+        else:
+            lines = []
+            for a, b in pairs:
+                pa = parts.get(a); pb = parts.get(b)
+                na = f"{pa.first_name} {pa.last_name}" if pa else str(a)
+                nb = f"{pb.first_name} {pb.last_name}" if pb else str(b)
+                lines.append(f"{na}  —  {nb}")
+            txt.setPlainText("\n".join(lines))
+
+        layout.addWidget(txt)
+        btns = QDialogButtonBox(QDialogButtonBox.Close, parent=dlg)
+        btns.rejected.connect(dlg.reject); btns.accepted.connect(dlg.accept)
+        layout.addWidget(btns)
+        dlg.resize(520, 420)
+        dlg.exec()

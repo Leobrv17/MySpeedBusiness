@@ -240,8 +240,9 @@ class SettingsPage(QWidget):
         if T <= 0: return cap_min
         return max(cap_min, min(cap_max, ceil(n / T)))
 
-    # Auto-tune (réutilise ta logique, enverra aussi les pauses/règle si besoin)
     def auto_tune(self):
+        from math import ceil, floor
+
         try:
             info = self.p.get_event_info()
             participants = list(self.p.list_participants())
@@ -254,59 +255,75 @@ class SettingsPage(QWidget):
             QMessageBox.information(self, "Aucun participant", "Ajoutez des participants avant l’auto-tune.")
             return
 
-        leads = [p for p in participants if p.is_table_lead]
-        L = len(leads)
-        if L == 0:
-            QMessageBox.warning(self, "Aucun chef de table", "Sélectionnez au moins un chef de table.")
+        # 1) Tables choisies par l'utilisateur (indépendant des chefs)
+        T = max(1, self.num_tables.value())
+        if T > N:
+            T = N  # pas plus de tables que de personnes
+
+        # 2) Capacité par table : on DOIT asseoir tout le monde à chaque session
+        # Répartition équilibrée: certaines tables à k_hi, d'autres à k_lo, avec 5..10
+        k_lo = max(5, N // T)
+        k_hi = min(10, k_lo + 1) if (N % T) else k_lo
+        # vérifier faisabilité: si k_lo > 10 => impossible avec T → il faut + de tables
+        if k_lo > 10:
+            QMessageBox.warning(self, "Capacité impossible",
+                                "Avec ce nombre de tables, on dépasserait 10 places/table.\nAugmentez le nombre de tables.")
             return
-        T = L
+        # vérif min: si k_lo < 5, on peut rester à 5 et laisser plus de tables à 5 (ok)
+        # on fixera cap_min/cap_max = [5..10]
+        cap_min = 5
+        cap_max = max(10, k_hi) if k_hi > 10 else 10  # standard 5..10
 
-        cap_min = max(5, self.cap_min.value())
-        cap_max = min(10, max(cap_min, self.cap_max.value()))
-        R = max(0, N - L)
-        target_k = int(round(R / max(1, T) + 1))
-        k = max(cap_min, min(cap_max, target_k))
-        rot_per_table = max(1, k - 1)
-
+        # 3) Sessions selon la priorité
         rule = "exclusivity" if self.chk_exclusivity.isChecked() else "coverage"
+        # par session, une personne rencontre ~ (k-1) personnes de sa table
+        # on approx avec k_moyen:
+        k_avg = (k_lo * (T - (N % T)) + (k_lo + 1) * (N % T)) / T
+        meets_per_session = max(1, int(round(k_avg - 1)))
 
-        # Budget utilisable (temps total - pauses)
-        total_minutes_budget = max(0, int((info["date_end"] - info["date_start"]).total_seconds() // 60))
-        pauses = (info["pause_count"] or 0) * (info["pause_minutes"] or 0)
-        budget = max(0, total_minutes_budget - pauses)
+        # Bornes SGP (approximatives) pour limiter les doublons: S <= floor((N - 1) / (k-1))
+        sgp_bound = max(1, (N - 1) // max(1, meets_per_session))
+
+        if rule == "coverage":
+            # viser "tout le monde se voit au moins 1 fois" → S pour balayer ~N-1 rencontres/personne
+            S_target = ceil((N - 1) / max(1, meets_per_session))
+        else:  # exclusivity
+            # viser "au plus 1 fois" mais discussions longues → peu de sessions, mais non triviales
+            # on prend ~la moitié de la couverture théorique (rotation utile sans compresser trop la durée)
+            S_target = max(1, ceil(0.5 * (N - 1) / max(1, meets_per_session)))
+
+        # 4) Budget + durée max
+        total = max(0, int((info["date_end"] - info["date_start"]).total_seconds() // 60))
+        pauses = (info.get("pause_count") or 0) * (info.get("pause_minutes") or 0)
+        usable = max(0, total - pauses)
         trans = max(2, min(5, self.trans.value() or 2))
 
-        # borne Social Golfer approx
-        if k >= 3 and R > 1:
-            r_sg = (R - 1) // (k - 2)
-        else:
-            r_sg = 1
+        # S borné par théorie et budget; dur >= 8 min si possible
+        S = max(1, min(S_target, sgp_bound))
+        # ajuster S pour que la durée ne tombe pas trop bas
+        while S > 1:
+            dur = (usable - S * trans) // S if S else 0
+            if dur >= 8:
+                break
+            S -= 1
+        # si même S=1 est serré:
+        dur = max(5, (usable - S * trans) // S if S else 10)
 
-        # exclusivité : S minimal sous contraintes (max durée)
-        # couverture : S assez grand pour donner au max de rotatifs une tournée complète
-        if rule == "exclusivity":
-            S_min = max(1, ceil(R / (T * rot_per_table))) if R > 0 else 1
-            S = max(1, min(r_sg, T, S_min))
-        else:  # coverage
-            S_need = max(1, ceil(R / (T * rot_per_table))) if R > 0 else 1
-            S = max(1, min(r_sg, T, S_need))
-
-        # Durée max qui rentre
-        dur = max(8, floor((budget - S * trans) / S)) if S > 0 else 10
-        if dur <= 0:
-            S = 1
-            dur = max(5, budget - trans)
-
-        # Applique
+        # Applique UI + DB
         self.num_tables.setValue(T)
-        self.cap_min.setValue(cap_min); self.cap_max.setValue(cap_max)
+        self.cap_min.setValue(cap_min);
+        self.cap_max.setValue(cap_max)
         self.session_count.setValue(S)
-        self.dur.setValue(dur); self.trans.setValue(trans)
+        self.dur.setValue(int(dur));
+        self.trans.setValue(int(trans))
         self._apply_sessions()
         self._update_info()
-        QMessageBox.information(self, "Paramètres proposés",
-            f"Tables (chefs): {T} | Capacité ≈ {k} (min-max {cap_min}-{cap_max})\n"
-            f"Sessions: {S} × ({dur}+{trans} min) | Règle: {'Exclusivité' if rule=='exclusivity' else 'Couverture'}"
+
+        QMessageBox.information(
+            self, "Paramètres proposés",
+            f"Tables: {T} | Capacités équilibrées entre {k_lo} et {k_hi}\n"
+            f"Sessions: {S} × ({dur}+{trans} min) | Priorité: "
+            f"{'Couverture (≥1 rencontre)' if rule == 'coverage' else 'Exclusivité (≤1 rencontre)'}"
         )
 
     def _schedule_apply_general(self):
