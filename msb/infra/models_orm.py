@@ -22,7 +22,7 @@ class EventORM(Base):
     session_duration_minutes: Mapped[int] = mapped_column(Integer, default=10)
     transition_minutes: Mapped[int] = mapped_column(Integer, default=2)
 
-    rule_priority: Mapped[str] = mapped_column(String(20), default="exclusivity")  # "exclusivity" ou "coverage"
+    rule_priority: Mapped[str] = mapped_column(String(20), default="exclusivity")  # priorité conservée pour compat, fixée à l'exclusivité
     pause_count: Mapped[int] = mapped_column(Integer, default=0)
     pause_minutes: Mapped[int] = mapped_column(Integer, default=0)
 
