@@ -1,10 +1,10 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from math import ceil, floor
+from math import ceil
 from PySide6.QtCore import QDateTime, QTimer
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QPushButton,
-    QLineEdit, QDateTimeEdit, QSpinBox, QCheckBox, QMessageBox, QButtonGroup
+    QLineEdit, QDateTimeEdit, QSpinBox, QMessageBox
 )
 from msb.services.persistence import Persistence
 
@@ -21,8 +21,6 @@ class Settings:
     session_count: int
     dur: int
     trans: int
-    # Règles
-    rule_priority: str  # "exclusivity" ou "coverage"
     # Pauses
     pause_count: int
     pause_minutes: int
@@ -65,17 +63,13 @@ class SettingsPage(QWidget):
         fls.addRow("Transition (minutes)", self.trans)
         root.addWidget(gb_sessions)
 
-        # ---------- Règles ----------
-        gb_rules = QGroupBox("Règles de l’événement", self)
-        vrr = QVBoxLayout(gb_rules)
-        self.chk_exclusivity = QCheckBox("Priorité : exclusivité (chaque personne ne croise qu’une fois)", self)
-        self.chk_coverage = QCheckBox("Priorité : couverture (tout le monde se croise au moins une fois)", self)
-        # exclusivité des cases via QButtonGroup
-        group = QButtonGroup(self); group.setExclusive(True)
-        group.addButton(self.chk_exclusivity); group.addButton(self.chk_coverage)
-        vrr.addWidget(self.chk_exclusivity)
-        vrr.addWidget(self.chk_coverage)
-        root.addWidget(gb_rules)
+        # ---------- Priorité ----------
+        self.rule_info = QLabel(
+            "Priorité appliquée : exclusivité (répétitions de paires évitées autant que possible)",
+            self,
+        )
+        self.rule_info.setWordWrap(True)
+        root.addWidget(self.rule_info)
 
         # ---------- Pauses ----------
         gb_pause = QGroupBox("Pauses", self)
@@ -110,9 +104,6 @@ class SettingsPage(QWidget):
         for w in (self.num_tables, self.cap_min, self.cap_max, self.session_count, self.dur, self.trans):
             w.valueChanged.connect(self._apply_sessions)
 
-        self.chk_exclusivity.toggled.connect(self._apply_rules)
-        self.chk_coverage.toggled.connect(self._apply_rules)
-
         for w in (self.pause_count, self.pause_minutes):
             w.valueChanged.connect(self._apply_pauses)
 
@@ -133,8 +124,6 @@ class SettingsPage(QWidget):
             self.session_count.setValue(0)
             self.dur.setValue(10)
             self.trans.setValue(2)
-            self.chk_exclusivity.setChecked(True)
-            self.chk_coverage.setChecked(False)
             self.pause_count.setValue(0)
             self.pause_minutes.setValue(0)
             self._update_info()
@@ -151,10 +140,6 @@ class SettingsPage(QWidget):
         self.session_count.setValue(info["session_count"] or 0)
         self.dur.setValue(info["dur"] or 10)
         self.trans.setValue(info["trans"] or 2)
-        # Règles
-        rp = (info["rule_priority"] or "exclusivity").lower()
-        self.chk_exclusivity.setChecked(rp == "exclusivity")
-        self.chk_coverage.setChecked(rp == "coverage")
         # Pauses
         self.pause_count.setValue(info["pause_count"] or 0)
         self.pause_minutes.setValue(info["pause_minutes"] or 0)
@@ -190,16 +175,6 @@ class SettingsPage(QWidget):
         self._update_info()
         if self.on_changed: self.on_changed()
 
-    # Règles
-    def _apply_rules(self):
-        rule = "exclusivity" if self.chk_exclusivity.isChecked() else "coverage"
-        try:
-            self.p.update_event_params(rule_priority=rule)
-        except RuntimeError:
-            return
-        self._update_info()
-        if self.on_changed: self.on_changed()
-
     # Pauses
     def _apply_pauses(self):
         try:
@@ -227,12 +202,11 @@ class SettingsPage(QWidget):
         slot = (info["dur"] or 0) + (info["trans"] or 0)
         sessions_fit = (usable // slot) if slot > 0 else 0
 
-        rule_label = "Exclusivité" if (info["rule_priority"] or "exclusivity") == "exclusivity" else "Couverture"
         target_per_table = self._target_capacity(n, info["num_tables"] or 0, info["cap_min"] or 5, info["cap_max"] or 10)
 
         self.info.setText(
             f"Participants: {n} | Cible/table ≈ {target_per_table} | Budget utile ≈ {usable} min | "
-            f"Sessions réalisables ≈ {sessions_fit} | Règle: {rule_label}"
+            f"Sessions réalisables ≈ {sessions_fit} | Priorité: Exclusivité"
         )
 
     @staticmethod
@@ -241,7 +215,7 @@ class SettingsPage(QWidget):
         return max(cap_min, min(cap_max, ceil(n / T)))
 
     def auto_tune(self):
-        from math import ceil, floor
+        from math import ceil
 
         try:
             info = self.p.get_event_info()
@@ -274,8 +248,7 @@ class SettingsPage(QWidget):
         cap_min = 5
         cap_max = max(10, k_hi) if k_hi > 10 else 10  # standard 5..10
 
-        # 3) Sessions selon la priorité
-        rule = "exclusivity" if self.chk_exclusivity.isChecked() else "coverage"
+        # 3) Sessions selon la priorité (fixée à exclusivité)
         # par session, une personne rencontre ~ (k-1) personnes de sa table
         # on approx avec k_moyen:
         k_avg = (k_lo * (T - (N % T)) + (k_lo + 1) * (N % T)) / T
@@ -284,13 +257,9 @@ class SettingsPage(QWidget):
         # Bornes SGP (approximatives) pour limiter les doublons: S <= floor((N - 1) / (k-1))
         sgp_bound = max(1, (N - 1) // max(1, meets_per_session))
 
-        if rule == "coverage":
-            # viser "tout le monde se voit au moins 1 fois" → S pour balayer ~N-1 rencontres/personne
-            S_target = ceil((N - 1) / max(1, meets_per_session))
-        else:  # exclusivity
-            # viser "au plus 1 fois" mais discussions longues → peu de sessions, mais non triviales
-            # on prend ~la moitié de la couverture théorique (rotation utile sans compresser trop la durée)
-            S_target = max(1, ceil(0.5 * (N - 1) / max(1, meets_per_session)))
+        # viser "au plus 1 fois" mais discussions longues → peu de sessions, mais non triviales
+        # on prend ~la moitié de la couverture théorique (rotation utile sans compresser trop la durée)
+        S_target = max(1, ceil(0.5 * (N - 1) / max(1, meets_per_session)))
 
         # 4) Budget + durée max
         total = max(0, int((info["date_end"] - info["date_start"]).total_seconds() // 60))
@@ -322,8 +291,7 @@ class SettingsPage(QWidget):
         QMessageBox.information(
             self, "Paramètres proposés",
             f"Tables: {T} | Capacités équilibrées entre {k_lo} et {k_hi}\n"
-            f"Sessions: {S} × ({dur}+{trans} min) | Priorité: "
-            f"{'Couverture (≥1 rencontre)' if rule == 'coverage' else 'Exclusivité (≤1 rencontre)'}"
+            f"Sessions: {S} × ({dur}+{trans} min) | Priorité: Exclusivité (≤1 rencontre)"
         )
 
     def _schedule_apply_general(self):

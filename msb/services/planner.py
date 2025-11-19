@@ -9,9 +9,7 @@ class Planner:
       - tout le monde a une place à chaque session (pas de bye)
       - capacités exactes par table (k_t, 5..10)
       - chefs fixes facultatifs: fixed_leads[t] occupe 1 place à la table t (toute session)
-      - priorité:
-          * "coverage"   : maximiser nouvelles rencontres (éviter les répétitions)
-          * "exclusivity": interdire les répétitions (si impossible, les minimiser)
+      - priorité exclusivité: interdit autant que possible les répétitions de paires
     Entrées:
       - num_tables: T
       - sessions: S
@@ -28,7 +26,6 @@ class Planner:
         sessions: int,
         table_capacities: List[int],
         fixed_leads: List[int],
-        priority: str,        # "coverage" | "exclusivity"
         people: List[int],
         seed: int | None = None,
     ) -> List[List[List[int]]]:
@@ -96,7 +93,7 @@ class Planner:
             order = pool[:]
             rng.shuffle(order)
 
-            # glouton: placer chacun en minimisant le coût (répétitions)
+            # glouton: placer chacun en minimisant les répétitions (priorité exclusivité)
             for p in order:
                 # build candidates: tables non pleines et (optionnel) non revisitées trop souvent
                 candidates = []
@@ -115,20 +112,18 @@ class Planner:
                     # toutes pleines -> devrait pas arriver car somme caps == N
                     continue
 
-                # score:
-                #  - exclusivity: très forte pénalité si paire déjà vue
-                #  - coverage: pénalité légère si paire déjà vue, bonus si nouvelle table
+                # score: très forte pénalité si paire déjà vue (priorité exclusivité)
                 best_t, best_score = None, 10**9
                 for t in candidates:
                     score = 0
                     # pénalise re-table
                     if t in seen_table[p]:
-                        score += 3 if priority == "exclusivity" else 1
+                        score += 3
                     # pénalise pairs déjà rencontrées
                     for other in tables[t]:
                         a, b = sorted((p, other))
                         if met_pairs[(a, b)] > 0:
-                            score += 100 if priority == "exclusivity" else 5
+                            score += 100
                     if score < best_score:
                         best_score, best_t = score, t
 

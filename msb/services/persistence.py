@@ -94,14 +94,13 @@ class Persistence:
                 "session_count": evt.session_count,
                 "dur": evt.session_duration_minutes,
                 "trans": evt.transition_minutes,
-                "rule_priority": evt.rule_priority or "exclusivity",
                 "pause_count": evt.pause_count or 0,
                 "pause_minutes": evt.pause_minutes or 0,
             }
 
     def update_event_params(self, *, num_tables=None, cap_min=None, cap_max=None, session_count=None, dur=None,
                             trans=None,
-                            rule_priority=None, pause_count=None, pause_minutes=None):
+                            pause_count=None, pause_minutes=None):
         self._require()
         with self.session_scope() as s:
             evt = s.get(EventORM, self.event_id)
@@ -111,7 +110,6 @@ class Persistence:
             if session_count is not None: evt.session_count = int(session_count)
             if dur is not None: evt.session_duration_minutes = int(dur)
             if trans is not None: evt.transition_minutes = int(trans)
-            if rule_priority is not None: evt.rule_priority = str(rule_priority)
             if pause_count is not None: evt.pause_count = int(pause_count)
             if pause_minutes is not None: evt.pause_minutes = int(pause_minutes)
 

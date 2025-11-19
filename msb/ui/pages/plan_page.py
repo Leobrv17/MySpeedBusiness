@@ -129,18 +129,16 @@ class PlanPage(QWidget):
         fixed_lead_set = set(lead_ids)
         rotator_ids = [p.id for p in rows if p.id not in fixed_lead_set]
 
-        # 6) Récupérer priorité & sessions
-        rule = (info.get("rule_priority") or "exclusivity").lower()  # "coverage" | "exclusivity"
+        # 6) Récupérer le nombre de sessions (priorité fixe à exclusivité)
         S = max(1, info.get("session_count") or 1)
 
         # 7) Générer le plan via le planner
-        #    Planner attendu: build_plan(num_tables, sessions, table_capacities, fixed_leads, priority, people)
+        #    Planner attendu: build_plan(num_tables, sessions, table_capacities, fixed_leads, people)
         plan = self.planner.build_plan(
             num_tables=T,
             sessions=S,
             table_capacities=caps,
             fixed_leads=lead_ids,  # chefs fixes (optionnels, ici requis et fournis)
-            priority=rule,
             people=rotator_ids
         )
 
@@ -154,7 +152,7 @@ class PlanPage(QWidget):
             self, "Plan généré",
             f"Plan de {S} session(s) généré avec {T} table(s).\n"
             f"Capacités par table: {caps}\n"
-            f"Priorité: {'Couverture' if rule == 'coverage' else 'Exclusivité'}"
+            "Priorité: Exclusivité"
         )
 
     # ou raw_plan selon ce que tu passes à render_plan
