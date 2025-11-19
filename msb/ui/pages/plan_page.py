@@ -95,12 +95,12 @@ class PlanPage(QWidget):
             )
             return
 
-        # 3) Faisabilité: tout le monde doit être assis, 5..10 par table
-        # => condition nécessaire: 5*T <= N <= 10*T
-        if N < 5 * T:
+        # 3) Faisabilité: tout le monde doit être assis, 6..10 par table
+        # => condition nécessaire: 6*T <= N <= 10*T
+        if N < 6 * T:
             QMessageBox.warning(
                 self, "Capacité insuffisante",
-                f"Avec {T} tables, il faut au moins {5 * T} participants (5 par table). "
+                f"Avec {T} tables, il faut au moins {6 * T} participants (6 par table). "
                 f"Participants actuels: {N}."
             )
             return
@@ -112,10 +112,10 @@ class PlanPage(QWidget):
             )
             return
 
-        # 4) Calcul des capacités exactes par table (5..10) avec somme == N
-        # Stratégie: démarrer à 5 partout, puis distribuer le reste jusqu'à atteindre N (sans dépasser 10)
-        caps = [5] * T
-        remaining = N - 5 * T  # nombre de places à répartir pour atteindre N
+        # 4) Calcul des capacités exactes par table (6..10) avec somme == N
+        # Stratégie: démarrer à 6 partout, puis distribuer le reste jusqu'à atteindre N (sans dépasser 10)
+        caps = [6] * T
+        remaining = N - 6 * T  # nombre de places à répartir pour atteindre N
         idx = 0
         while remaining > 0:
             if caps[idx] < 10:
@@ -152,7 +152,6 @@ class PlanPage(QWidget):
             self, "Plan généré",
             f"Plan de {S} session(s) généré avec {T} table(s).\n"
             f"Capacités par table: {caps}\n"
-            "Priorité: Exclusivité"
         )
 
     # ou raw_plan selon ce que tu passes à render_plan
