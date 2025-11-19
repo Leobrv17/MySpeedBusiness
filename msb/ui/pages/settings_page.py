@@ -50,8 +50,8 @@ class SettingsPage(QWidget):
         gb_sessions = QGroupBox("Sessions", self)
         fls = QFormLayout(gb_sessions)
         self.num_tables = QSpinBox(self); self.num_tables.setRange(0, 500)
-        self.cap_min = QSpinBox(self); self.cap_min.setRange(1, 100); self.cap_min.setValue(5)
-        self.cap_max = QSpinBox(self); self.cap_max.setRange(1, 100); self.cap_max.setValue(10)
+        self.cap_min = QSpinBox(self); self.cap_min.setRange(6, 10); self.cap_min.setValue(6)
+        self.cap_max = QSpinBox(self); self.cap_max.setRange(6, 10); self.cap_max.setValue(10)
         self.session_count = QSpinBox(self); self.session_count.setRange(0, 500)
         self.dur = QSpinBox(self); self.dur.setRange(1, 240); self.dur.setValue(10)
         self.trans = QSpinBox(self); self.trans.setRange(0, 60); self.trans.setValue(2)
@@ -62,14 +62,6 @@ class SettingsPage(QWidget):
         fls.addRow("Durée (minutes) / session", self.dur)
         fls.addRow("Transition (minutes)", self.trans)
         root.addWidget(gb_sessions)
-
-        # ---------- Priorité ----------
-        self.rule_info = QLabel(
-            "Priorité appliquée : exclusivité (répétitions de paires évitées autant que possible)",
-            self,
-        )
-        self.rule_info.setWordWrap(True)
-        root.addWidget(self.rule_info)
 
         # ---------- Pauses ----------
         gb_pause = QGroupBox("Pauses", self)
@@ -119,7 +111,7 @@ class SettingsPage(QWidget):
             self.ev_start.setDateTime(now)
             self.ev_end.setDateTime(now.addSecs(2*3600))
             self.num_tables.setValue(0)
-            self.cap_min.setValue(5)
+            self.cap_min.setValue(6)
             self.cap_max.setValue(10)
             self.session_count.setValue(0)
             self.dur.setValue(10)
@@ -135,7 +127,7 @@ class SettingsPage(QWidget):
         self.ev_end.setDateTime(QDateTime(info["date_end"]))
         # Sessions
         self.num_tables.setValue(info["num_tables"] or 0)
-        self.cap_min.setValue(max(1, info["cap_min"] or 5))
+        self.cap_min.setValue(max(6, info["cap_min"] or 6))
         self.cap_max.setValue(max(self.cap_min.value(), info["cap_max"] or 10))
         self.session_count.setValue(info["session_count"] or 0)
         self.dur.setValue(info["dur"] or 10)
@@ -202,11 +194,11 @@ class SettingsPage(QWidget):
         slot = (info["dur"] or 0) + (info["trans"] or 0)
         sessions_fit = (usable // slot) if slot > 0 else 0
 
-        target_per_table = self._target_capacity(n, info["num_tables"] or 0, info["cap_min"] or 5, info["cap_max"] or 10)
+        target_per_table = self._target_capacity(n, info["num_tables"] or 0, info["cap_min"] or 6, info["cap_max"] or 10)
 
         self.info.setText(
             f"Participants: {n} | Cible/table ≈ {target_per_table} | Budget utile ≈ {usable} min | "
-            f"Sessions réalisables ≈ {sessions_fit} | Priorité: Exclusivité"
+            f"Sessions réalisables ≈ {sessions_fit}"
         )
 
     @staticmethod
@@ -234,24 +226,41 @@ class SettingsPage(QWidget):
         if T > N:
             T = N  # pas plus de tables que de personnes
 
-        # 2) Capacité par table : on DOIT asseoir tout le monde à chaque session
-        # Répartition équilibrée: certaines tables à k_hi, d'autres à k_lo, avec 5..10
-        k_lo = max(5, N // T)
-        k_hi = min(10, k_lo + 1) if (N % T) else k_lo
-        # vérifier faisabilité: si k_lo > 10 => impossible avec T → il faut + de tables
-        if k_lo > 10:
-            QMessageBox.warning(self, "Capacité impossible",
-                                "Avec ce nombre de tables, on dépasserait 10 places/table.\nAugmentez le nombre de tables.")
+        # 2) Capacité par table : 6 à 10 personnes, avec répartition la plus fixe possible
+        max_tables_by_min = N // 6
+        min_tables_by_max = ceil(N / 10)
+        if max_tables_by_min == 0 or min_tables_by_max > max_tables_by_min:
+            QMessageBox.warning(
+                self,
+                "Capacité impossible",
+                "Avec ces participants, il est impossible de respecter 6 à 10 personnes par table."
+            )
             return
-        # vérif min: si k_lo < 5, on peut rester à 5 et laisser plus de tables à 5 (ok)
-        # on fixera cap_min/cap_max = [5..10]
-        cap_min = 5
-        cap_max = max(10, k_hi) if k_hi > 10 else 10  # standard 5..10
+
+        if T > max_tables_by_min:
+            T = max_tables_by_min
+        if T < min_tables_by_max:
+            T = min_tables_by_max
+
+        base = max(6, min(10, N // T))
+        caps = [base] * T
+        remaining = N - base * T
+        idx = 0
+        while remaining > 0:
+            if caps[idx] < 10:
+                caps[idx] += 1
+                remaining -= 1
+            idx = (idx + 1) % T
+
+        cap_min = 6
+        cap_max = 10
+        k_lo = min(caps)
+        k_hi = max(caps)
 
         # 3) Sessions selon la priorité (fixée à exclusivité)
         # par session, une personne rencontre ~ (k-1) personnes de sa table
         # on approx avec k_moyen:
-        k_avg = (k_lo * (T - (N % T)) + (k_lo + 1) * (N % T)) / T
+        k_avg = sum(caps) / T if T else 0
         meets_per_session = max(1, int(round(k_avg - 1)))
 
         # Bornes SGP (approximatives) pour limiter les doublons: S <= floor((N - 1) / (k-1))
@@ -276,7 +285,7 @@ class SettingsPage(QWidget):
                 break
             S -= 1
         # si même S=1 est serré:
-        dur = max(5, (usable - S * trans) // S if S else 10)
+        dur = max(5, int(ceil(k_hi * 1.5)))
 
         # Applique UI + DB
         self.num_tables.setValue(T)
@@ -291,7 +300,7 @@ class SettingsPage(QWidget):
         QMessageBox.information(
             self, "Paramètres proposés",
             f"Tables: {T} | Capacités équilibrées entre {k_lo} et {k_hi}\n"
-            f"Sessions: {S} × ({dur}+{trans} min) | Priorité: Exclusivité (≤1 rencontre)"
+            f"Sessions: {S} × ({dur}+{trans} min)"
         )
 
     def _schedule_apply_general(self):
