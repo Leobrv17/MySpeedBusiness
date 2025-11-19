@@ -284,8 +284,11 @@ class SettingsPage(QWidget):
             if dur >= 8:
                 break
             S -= 1
-        # si même S=1 est serré:
-        dur = max(5, int(ceil(k_hi * 1.5)))
+
+        # ne pas dépasser le budget tout en visant ~1.5 min / siège (min 5 min)
+        budgeted = max(0, (usable - S * trans) // max(1, S))
+        dur_target = max(5, int(ceil(k_hi * 1.5)))
+        dur = max(0, min(budgeted, dur_target))
 
         # Applique UI + DB
         self.num_tables.setValue(T)
