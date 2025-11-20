@@ -83,7 +83,8 @@ class MainWindow(QMainWindow):
 
         self.act_import_excel = QAction("Importer depuis Excel…", self)
         self.act_import_ui = QAction("Ajouter en masse (UI)…", self)
-        self.act_export_excel = QAction("Exporter Excel…", self)
+        self.act_export_excel = QAction("Exporter plan (Excel)…", self)
+        self.act_export_template = QAction("Exporter exemple d'import (Excel)…", self)
         self.act_export_badges = QAction("Exporter badges (PDF)…", self)
 
         self.act_new.triggered.connect(self.on_new_event)
@@ -94,6 +95,7 @@ class MainWindow(QMainWindow):
         self.act_import_excel.triggered.connect(self.on_import_excel)
         self.act_import_ui.triggered.connect(self.on_import_ui)
         self.act_export_excel.triggered.connect(self.on_export_excel)
+        self.act_export_template.triggered.connect(self.on_export_template)
         self.act_export_badges.triggered.connect(self.on_export_badges)
 
     def _create_menus(self) -> None:
@@ -111,6 +113,7 @@ class MainWindow(QMainWindow):
 
         m_export = bar.addMenu("&Exporter")
         m_export.addAction(self.act_export_excel)
+        m_export.addAction(self.act_export_template)
         m_export.addAction(self.act_export_badges)
 
     def _create_toolbar(self) -> None:
@@ -126,6 +129,7 @@ class MainWindow(QMainWindow):
         tb.addAction(self.act_import_ui)
         tb.addSeparator()
         tb.addAction(self.act_export_excel)
+        tb.addAction(self.act_export_template)
         tb.addAction(self.act_export_badges)
 
     # --- Handlers
@@ -166,23 +170,49 @@ class MainWindow(QMainWindow):
     def on_export_excel(self):
         try:
             info = self.persistence.get_event_info()
+            plan = self.persistence.load_plan()
         except RuntimeError:
             QMessageBox.warning(self, "Aucune réunion", "Ouvrez ou créez une réunion avant d'exporter.")
             return
 
-        suggested = f"{(info.get('name') or 'participants').strip() or 'participants'}.xlsx"
-        path, _ = QFileDialog.getSaveFileName(self, "Exporter l'exemple Excel", suggested, "Excel (*.xlsx)")
+        if not plan:
+            QMessageBox.warning(self, "Aucun plan", "Générez ou chargez un plan de table avant d'exporter le plan.")
+            return
+
+        suggested = f"{(info.get('name') or 'plan').strip() or 'plan'}.xlsx"
+        path, _ = QFileDialog.getSaveFileName(self, "Exporter le plan Excel", suggested, "Excel (*.xlsx)")
         if not path:
             return
 
         try:
-            output = self.export_service.export_excel(Path(path))
+            output = self.export_service.export_plan_excel(Path(path))
         except Exception as exc:
             log.exception("Export Excel échoué")
             QMessageBox.critical(self, "Erreur d'export", str(exc))
             return
 
         QMessageBox.information(self, "Export terminé", f"Fichier généré : {output}")
+
+    def on_export_template(self):
+        try:
+            info = self.persistence.get_event_info()
+        except RuntimeError:
+            QMessageBox.warning(self, "Aucune réunion", "Ouvrez ou créez une réunion avant d'exporter.")
+            return
+
+        suggested = f"{(info.get('name') or 'participants').strip() or 'participants'}_modele.xlsx"
+        path, _ = QFileDialog.getSaveFileName(self, "Exporter un exemple pour import", suggested, "Excel (*.xlsx)")
+        if not path:
+            return
+
+        try:
+            output = self.export_service.export_import_template(Path(path))
+        except Exception as exc:
+            log.exception("Export du modèle Excel échoué")
+            QMessageBox.critical(self, "Erreur d'export", str(exc))
+            return
+
+        QMessageBox.information(self, "Export terminé", f"Modèle généré : {output}")
 
     def on_export_badges(self):
         try:
