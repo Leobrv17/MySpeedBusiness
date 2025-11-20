@@ -21,7 +21,7 @@ def main() -> int:
 
     persistence = Persistence()
 
-    import_svc = ImportService()
+    import_svc = ImportService(persistence)
     export_svc = ExportService(persistence=persistence)
     win = MainWindow(import_service=import_svc, export_service=export_svc, persistence=persistence)
 
