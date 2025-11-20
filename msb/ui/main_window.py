@@ -19,11 +19,18 @@ from msb.ui.pages.plan_page import PlanPage
 log = logging.getLogger(__name__)
 
 class MainWindow(QMainWindow):
-    def __init__(self, import_service: ImportService, export_service: ExportService) -> None:
+    def __init__(
+        self,
+        import_service: ImportService,
+        export_service: ExportService,
+        persistence: Persistence | None = None,
+    ) -> None:
         super().__init__()
         self.import_service = import_service
         self.export_service = export_service
-        self.persistence = Persistence()
+        self.persistence = persistence or Persistence()
+        if hasattr(self.export_service, "persistence"):
+            self.export_service.persistence = self.persistence
 
         self.setWindowTitle(APP_NAME)
         self.resize(1200, 800)
@@ -76,7 +83,7 @@ class MainWindow(QMainWindow):
         self.act_import_excel.triggered.connect(self._todo)
         self.act_import_ui.triggered.connect(self._todo)
         self.act_export_excel.triggered.connect(self._todo)
-        self.act_export_badges.triggered.connect(self._todo)
+        self.act_export_badges.triggered.connect(self.on_export_badges)
 
     def _create_menus(self) -> None:
         bar = self.menuBar()
@@ -113,6 +120,28 @@ class MainWindow(QMainWindow):
     # --- Handlers
     def _todo(self):
         QMessageBox.information(self, "À implémenter", "Cette fonctionnalité sera ajoutée ultérieurement.")
+
+    def on_export_badges(self):
+        try:
+            info = self.persistence.get_event_info()
+        except RuntimeError:
+            QMessageBox.warning(self, "Aucune réunion", "Ouvrez ou créez une réunion avant d'exporter.")
+            return
+
+        event_name = (info.get("name") or "badges").strip()
+        suggested = f"{event_name or 'badges'}.pdf"
+        path, _ = QFileDialog.getSaveFileName(self, "Exporter les badges", suggested, "PDF (*.pdf)")
+        if not path:
+            return
+
+        try:
+            output = self.export_service.export_badges_pdf(Path(path))
+        except Exception as exc:
+            log.exception("Export des badges échoué")
+            QMessageBox.critical(self, "Erreur d'export", str(exc))
+            return
+
+        QMessageBox.information(self, "Export terminé", f"Badges exportés vers {output}")
 
     def on_new_event(self):
         dlg = NewEventDialog(self)
