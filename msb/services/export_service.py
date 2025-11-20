@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from openpyxl import Workbook
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
@@ -27,9 +28,43 @@ class ExportService:
         self.persistence = persistence
         self.logo_path = logo_path
 
-    def export_excel(self) -> None:
-        # TODO: à implémenter
-        pass
+    def export_excel(self, output_path: str | Path) -> Path:
+        """Exporte un modèle Excel (avec participants existants si présents)."""
+
+        persistence = self._require_persistence()
+        output_path = Path(output_path)
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Participants"
+
+        headers = [
+            "Prénom",
+            "Nom",
+            "Métier",
+            "Visiteur (Oui/Non)",
+            "Chef de table (Oui/Non)",
+        ]
+        ws.append(headers)
+
+        participants = list(persistence.list_participants())
+        if participants:
+            for p in participants:
+                ws.append(
+                    [
+                        p.first_name,
+                        p.last_name,
+                        p.job,
+                        "Oui" if getattr(p, "is_guest", False) else "Non",
+                        "Oui" if getattr(p, "is_table_lead", False) else "Non",
+                    ]
+                )
+        else:
+            ws.append(["Alice", "Durand", "Conseillère financière", "Non", "Oui"])
+            ws.append(["Bob", "Martin", "Architecte", "Oui", "Non"])
+
+        wb.save(output_path)
+        return output_path
 
     def export_badges_pdf(self, output_path: str | Path) -> Path:
         """
