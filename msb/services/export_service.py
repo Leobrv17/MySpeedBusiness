@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Iterable
 
 from openpyxl import Workbook
+from openpyxl.styles import Alignment
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
@@ -29,7 +30,81 @@ class ExportService:
         self.logo_path = logo_path
 
     def export_excel(self, output_path: str | Path) -> Path:
-        """Exporte un modèle Excel (avec participants existants si présents)."""
+        """Exporte le plan (vues tables + participants) au format Excel."""
+
+        return self.export_plan_excel(output_path)
+
+    def export_plan_excel(self, output_path: str | Path) -> Path:
+        """Génère un Excel contenant le plan de table (vues table et participant)."""
+
+        persistence = self._require_persistence()
+        output_path = Path(output_path)
+
+        event_info = persistence.get_event_info()
+        participants = list(persistence.list_participants())
+        plan = persistence.load_plan()
+
+        if not plan:
+            raise RuntimeError("Aucun plan de table enregistré. Générez ou chargez un plan avant d'exporter.")
+
+        participants_by_id = {p.id: p for p in participants}
+        session_count = len(plan)
+        table_count = len(plan[0]) if session_count else 0
+
+        wb = Workbook()
+
+        # Vue par table
+        ws_tables = wb.active
+        ws_tables.title = "Plan par table"
+        ws_tables.append(["Session / Table", *[f"Table {i + 1}" for i in range(table_count)]])
+
+        for s_idx, tables in enumerate(plan):
+            row = [f"Session {s_idx + 1}"]
+            for t_idx, pids in enumerate(tables):
+                names = []
+                for pid in pids:
+                    p = participants_by_id.get(pid)
+                    if p:
+                        names.append(f"{p.first_name} {p.last_name} - {p.job}")
+                row.append("\n".join(names) if names else "-")
+            ws_tables.append(row)
+
+        wrap_align = Alignment(wrap_text=True, vertical="top")
+        for row in ws_tables.iter_rows(min_row=2, min_col=2):
+            for cell in row:
+                cell.alignment = wrap_align
+
+        # Vue par participant
+        ws_by_participant = wb.create_sheet("Plan par participant")
+        ws_by_participant.append(["Participant", *[f"S{i + 1}" for i in range(session_count)]])
+
+        for p in participants:
+            row = [f"{p.first_name} {p.last_name} ({p.job})"]
+            for s_idx in range(session_count):
+                table_idx = "-"
+                tables = plan[s_idx]
+                for t_idx, pids in enumerate(tables):
+                    if p.id in pids:
+                        table_idx = t_idx + 1
+                        break
+                row.append(table_idx)
+            ws_by_participant.append(row)
+
+        ws_by_participant.freeze_panes = "B2"
+        ws_tables.freeze_panes = "B2"
+
+        # Résumé minimal
+        summary = wb.create_sheet("Résumé")
+        summary.append(["Événement", event_info.get("name", "")])
+        summary.append(["Sessions", session_count])
+        summary.append(["Tables", table_count])
+        summary.append(["Participants", len(participants)])
+
+        wb.save(output_path)
+        return output_path
+
+    def export_import_template(self, output_path: str | Path) -> Path:
+        """Exporte un modèle Excel pour réimport de participants."""
 
         persistence = self._require_persistence()
         output_path = Path(output_path)
