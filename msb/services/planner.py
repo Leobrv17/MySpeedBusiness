@@ -69,6 +69,12 @@ class Planner:
         met_pairs: Dict[Tuple[int, int], int] = defaultdict(int)
         seen_with_lead: Dict[int, Set[int]] = defaultdict(set)  # personne -> set(index table) si chef fixe
         seen_table: Dict[int, Set[int]] = defaultdict(set)      # personne -> set(index table), pour limiter re-table
+        visit_count: Dict[int, Dict[int, int]] = defaultdict(lambda: defaultdict(int))
+
+        # max_visits_per_table: nombre de fois qu'une personne peut revenir sur la même table
+        # avant d'être reléguée en fallback (rotation forcée par défaut)
+        max_visits_per_table = 1
+        seen_table_penalty = 50
 
         plan: List[List[List[int]]] = []
 
@@ -96,17 +102,20 @@ class Planner:
             # glouton: placer chacun en minimisant les répétitions (priorité exclusivité)
             for p in order:
                 # build candidates: tables non pleines et (optionnel) non revisitées trop souvent
-                candidates = []
+                primary_candidates = []
+                fallback_candidates = []
                 for t in range(T):
                     # place dispo ?
                     cap = caps[t]
                     if len(tables[t]) >= cap:  # pleine
                         continue
-                    # si chef fixe à t, on peut éviter qu'une personne revienne trop souvent au même chef
-                    if t in seen_table[p]:
-                        # on pénalise mais on n'interdit pas pour garantir remplissage
-                        pass
-                    candidates.append(t)
+                    visits_here = visit_count[p][t]
+                    if visits_here < max_visits_per_table:
+                        primary_candidates.append(t)
+                    else:
+                        fallback_candidates.append(t)
+
+                candidates = primary_candidates if primary_candidates else fallback_candidates
 
                 if not candidates:
                     # toutes pleines -> devrait pas arriver car somme caps == N
@@ -118,7 +127,7 @@ class Planner:
                     score = 0
                     # pénalise re-table
                     if t in seen_table[p]:
-                        score += 3
+                        score += (visit_count[p][t] + 1) * seen_table_penalty
                     # pénalise pairs déjà rencontrées
                     for other in tables[t]:
                         a, b = sorted((p, other))
@@ -129,6 +138,7 @@ class Planner:
 
                 tables[best_t].append(p)
                 seen_table[p].add(best_t)
+                visit_count[p][best_t] += 1
                 if best_t < len(leads):
                     seen_with_lead[p].add(best_t)
 
