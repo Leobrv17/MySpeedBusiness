@@ -242,7 +242,7 @@ class ExportService:
 
                 c.setFillColor(colors.black)
                 c.setFont("Helvetica-Bold", 10)
-                c.drawCentredString(x + box_width / 2, base_y + box_height - 8, f"Session {idx + 1}")
+                c.drawCentredString(x + box_width / 2, base_y + box_height - 8, f"S{idx + 1}")
                 c.setFont("Helvetica", 9)
                 c.drawCentredString(x + box_width / 2, base_y + 8, f"Table {table}")
             y = base_y - 6
