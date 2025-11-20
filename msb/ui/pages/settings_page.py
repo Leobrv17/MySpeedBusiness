@@ -270,22 +270,10 @@ class SettingsPage(QWidget):
         # on prend ~la moitié de la couverture théorique (rotation utile sans compresser trop la durée)
         S_target = max(1, ceil(0.5 * (N - 1) / max(1, meets_per_session)))
 
-        # 4) Budget + durée max
-        total = max(0, int((info["date_end"] - info["date_start"]).total_seconds() // 60))
-        pauses = (info.get("pause_count") or 0) * (info.get("pause_minutes") or 0)
-        usable = max(0, total - pauses)
+        # 4) Durées (sans contrainte de budget temporel)
         trans = max(2, min(5, self.trans.value() or 2))
-
-        # S borné par théorie et budget; dur >= 8 min si possible
         S = max(1, min(S_target, sgp_bound))
-        # ajuster S pour que la durée ne tombe pas trop bas
-        while S > 1:
-            dur = (usable - S * trans) // S if S else 0
-            if dur >= 8:
-                break
-            S -= 1
-        # si même S=1 est serré:
-        dur = max(5, int(ceil(k_hi * 1.5)))
+        dur = max(8, int(ceil(k_hi * 1.5)))
 
         # Applique UI + DB
         self.num_tables.setValue(T)
