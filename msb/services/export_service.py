@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
@@ -108,57 +109,154 @@ class ExportService:
         logo_path: Path | None,
     ) -> None:
         c = canvas.Canvas(str(output_path), pagesize=A4)
-        width, height = A4
-        margin = 20 * mm
+        page_width, page_height = A4
+
+        badge_width = 90 * mm
+        badge_height = 55 * mm
+        margin = 10 * mm
+        h_spacing = 5 * mm
+        v_spacing = 5 * mm
+
+        cols = max(1, int((page_width - 2 * margin + h_spacing) // (badge_width + h_spacing)))
+        rows = max(1, int((page_height - 2 * margin + v_spacing) // (badge_height + v_spacing)))
+        badges_per_page = max(1, cols * rows)
 
         logo_reader = None
-        logo_max_width = 45 * mm
-        logo_max_height = 20 * mm
+        logo_max_width = 30 * mm
+        logo_max_height = 12 * mm
         if logo_path and logo_path.exists():
             logo_reader = ImageReader(str(logo_path))
 
-        for badge in badges:
-            y = height - margin
+        palette = [
+            colors.HexColor("#ffd84a"),
+            colors.HexColor("#f06292"),
+            colors.HexColor("#4fc3f7"),
+            colors.HexColor("#aed581"),
+            colors.HexColor("#ff8a65"),
+            colors.HexColor("#f48fb1"),
+            colors.HexColor("#29b6f6"),
+            colors.HexColor("#7986cb"),
+        ]
 
-            # Titre de réunion
-            c.setFont("Helvetica-Bold", 18)
-            c.drawString(margin, y, event_name)
+        for idx, badge in enumerate(badges):
+            pos_in_page = idx % badges_per_page
+            if idx and pos_in_page == 0:
+                c.showPage()
 
-            if logo_reader:
-                c.drawImage(
-                    logo_reader,
-                    width - margin - logo_max_width,
-                    height - margin - logo_max_height,
-                    width=logo_max_width,
-                    height=logo_max_height,
-                    preserveAspectRatio=True,
-                    mask="auto",
-                )
+            col = pos_in_page % cols
+            row = pos_in_page // cols
 
-            y -= 30
-            name_line = badge.full_name
-            if badge.is_guest:
-                name_line = f"{name_line} (Invité)"
-            c.setFont("Helvetica-Bold", 24)
-            c.drawString(margin, y, name_line)
+            x = margin + col * (badge_width + h_spacing)
+            y = page_height - margin - (row + 1) * badge_height - row * v_spacing
 
-            y -= 18
-            c.setFont("Helvetica", 14)
-            c.drawString(margin, y, badge.job)
-
-            y -= 26
-            c.setFont("Helvetica-Bold", 14)
-            c.drawString(margin, y, "Tables par session :")
-            y -= 16
-            c.setFont("Helvetica", 12)
-
-            if not badge.tables:
-                c.drawString(margin, y, "Aucun plan de table enregistré.")
-            else:
-                for idx, table in enumerate(badge.tables, start=1):
-                    c.drawString(margin, y, f"Session {idx} : Table {table}")
-                    y -= 14
-
-            c.showPage()
+            self._draw_badge(
+                c=c,
+                origin_x=x,
+                origin_y=y,
+                width=badge_width,
+                height=badge_height,
+                badge=badge,
+                event_name=event_name,
+                palette=palette,
+                logo_reader=logo_reader,
+                logo_size=(logo_max_width, logo_max_height),
+            )
 
         c.save()
+
+    def _draw_badge(
+        self,
+        *,
+        c: canvas.Canvas,
+        origin_x: float,
+        origin_y: float,
+        width: float,
+        height: float,
+        badge: BadgeInfo,
+        event_name: str,
+        palette: list,
+        logo_reader: ImageReader | None,
+        logo_size: tuple[float, float],
+    ) -> None:
+        padding = 6 * mm
+        box_gap = 2 * mm
+        strip_height = 16 * mm
+        bottom_bar_height = 10 * mm
+
+        c.saveState()
+        c.translate(origin_x, origin_y)
+
+        # Contour du badge
+        c.setLineWidth(1)
+        c.roundRect(0, 0, width, height, radius=4 * mm, stroke=1, fill=0)
+
+        y = height - padding
+
+        # En-tête de réunion
+        c.setFillColor(colors.HexColor("#c62828"))
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(padding, y - 8, event_name or "")
+
+        if logo_reader:
+            logo_w, logo_h = logo_size
+            c.drawImage(
+                logo_reader,
+                width - padding - logo_w,
+                height - padding - logo_h,
+                width=logo_w,
+                height=logo_h,
+                preserveAspectRatio=True,
+                mask="auto",
+            )
+
+        # Nom complet
+        y -= 22
+        name_line = badge.full_name
+        if badge.is_guest:
+            name_line = f"{name_line} (Invité)"
+        c.setFillColor(colors.black)
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(padding, y, name_line)
+
+        # Métier
+        y -= 14
+        c.setFont("Helvetica", 11)
+        c.drawString(padding, y, badge.job)
+
+        # Bandeau sessions / tables
+        y -= 18
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(padding, y, "Sessions / Tables")
+
+        if badge.tables:
+            count = len(badge.tables)
+            avail_width = width - 2 * padding - (count - 1) * box_gap
+            box_width = avail_width / count if count else 0
+            box_height = strip_height
+            base_y = y - box_height - 4
+            for idx, table in enumerate(badge.tables):
+                color = palette[idx % len(palette)] if palette else colors.lightgrey
+                x = padding + idx * (box_width + box_gap)
+                c.setFillColor(color)
+                c.roundRect(x, base_y, box_width, box_height, radius=2 * mm, stroke=0, fill=1)
+
+                c.setFillColor(colors.black)
+                c.setFont("Helvetica-Bold", 10)
+                c.drawCentredString(x + box_width / 2, base_y + box_height - 8, f"Session {idx + 1}")
+                c.setFont("Helvetica", 9)
+                c.drawCentredString(x + box_width / 2, base_y + 8, f"Table {table}")
+            y = base_y - 6
+        else:
+            y -= 10
+            c.setFont("Helvetica", 9)
+            c.drawString(padding, y, "Aucun plan de table enregistré.")
+
+        # Bandeau d'état (membre / invité)
+        c.setFillColor(colors.HexColor("#b86d1f"))
+        c.rect(0, 0, width, bottom_bar_height, stroke=0, fill=1)
+        c.setFillColor(colors.white)
+        c.setFont("Helvetica-Bold", 12)
+        status = "Invité" if badge.is_guest else "Membre"
+        c.drawCentredString(width / 2, bottom_bar_height / 2 - 3, status)
+
+        c.restoreState()
