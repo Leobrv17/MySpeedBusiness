@@ -2,7 +2,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import QAction, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QFileDialog,
     QLabel,
@@ -25,6 +25,8 @@ from msb.ui.pages.participants_page import ParticipantsPage
 from msb.ui.pages.settings_page import SettingsPage
 from msb.ui.pages.plan_page import PlanPage
 
+APP_ICON = Path(__file__).resolve().parent.parent / "img" / "msb_logo.png"
+
 log = logging.getLogger(__name__)
 
 class MainWindow(QMainWindow):
@@ -44,6 +46,7 @@ class MainWindow(QMainWindow):
             self.export_service.persistence = self.persistence
 
         self.setWindowTitle(APP_NAME)
+        self.setWindowIcon(QIcon(str(APP_ICON)))
         self.resize(1200, 800)
 
         # Tabs / pages

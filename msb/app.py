@@ -1,6 +1,7 @@
 from __future__ import annotations
 import logging, sys
 from pathlib import Path
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from msb.core.config import load_config
@@ -14,6 +15,9 @@ from msb.ui.theme import ThemeManager   # ✅
 
 def main() -> int:
     app = QApplication(sys.argv)
+
+    app_icon = Path(__file__).resolve().parent.parent / "img" / "msb_logo.png"
+    app.setWindowIcon(QIcon(str(app_icon)))
 
     cfg = load_config()
     setup_logging(cfg.data_dir / "logs")
