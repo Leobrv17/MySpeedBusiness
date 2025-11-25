@@ -7,8 +7,10 @@ fichiers via ``get_resources_root``.
 """
 
 import pathlib
+import sys
 
-project_root = pathlib.Path(__file__).resolve().parent.parent
+spec_path = pathlib.Path(globals().get("__file__", sys.argv[0])).resolve()
+project_root = spec_path.parent.parent
 block_cipher = None
 
 RESOURCE_DATAS = [
