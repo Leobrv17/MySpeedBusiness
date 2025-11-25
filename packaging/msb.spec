@@ -15,7 +15,10 @@ project_root = spec_path.parent.parent
 # Emplacements de sortie explicites pour éviter les collisions entre le binaire
 # intermédiaire (EXE) et le dossier final créé par COLLECT.
 build_root = project_root / "build" / "pyinstaller"
-dist_root = project_root / "dist"
+
+# On sépare le dossier final pour ne pas écraser l'EXE (nommé "MySpeedBusiness")
+# généré en amont par PyInstaller dans le répertoire dist par défaut.
+dist_root = project_root / "dist" / "bundle"
 
 block_cipher = None
 
