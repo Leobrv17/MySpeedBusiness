@@ -115,8 +115,17 @@ class ParticipantsPage(QWidget):
     def delete_selected(self):
         sel = self.table.selectionModel().selectedRows()
         if not sel: return
-        ids = [ self.model.index(r.row(), 0).data() for r in sel ]
-        for pid in ids:
-            self.p.remove_participant(int(pid))
+        rows = [self.model.rows[r.row()] for r in sel]
+        names = ", ".join(f"{p.first_name} {p.last_name}".strip() for p in rows)
+        confirm = QMessageBox.question(
+            self,
+            "Confirmer la suppression",
+            f"Supprimer les participant(e)s sélectionné(e)s : {names} ?",
+        )
+        if confirm != QMessageBox.Yes:
+            return
+
+        for p in rows:
+            self.p.remove_participant(int(p.id))
         self.reload()
         if self.on_ratio_changed: self.on_ratio_changed()
