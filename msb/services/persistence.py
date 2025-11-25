@@ -146,6 +146,12 @@ class Persistence:
     def remove_participant(self, pid: int):
         self._require()
         with self.session_scope() as s:
+            s.execute(
+                delete(SeatingORM).where(
+                    SeatingORM.event_id == self.event_id,
+                    SeatingORM.participant_id == pid,
+                )
+            )
             p = s.get(ParticipantORM, pid)
             if p: s.delete(p)
 
