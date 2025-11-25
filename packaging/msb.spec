@@ -12,13 +12,9 @@ import sys
 spec_path = pathlib.Path(globals().get("__file__", sys.argv[0])).resolve()
 project_root = spec_path.parent.parent
 
-# Emplacements de sortie explicites pour éviter les collisions entre le binaire
-# intermédiaire (EXE) et le dossier final créé par COLLECT.
+# Emplacements de sortie explicites
 build_root = project_root / "build" / "pyinstaller"
-
-# On sépare le dossier final pour ne pas écraser l'EXE (nommé "MySpeedBusiness")
-# généré en amont par PyInstaller dans le répertoire dist par défaut.
-dist_root = project_root / "dist" / "bundle"
+dist_root = project_root / "dist"
 
 block_cipher = None
 
@@ -50,10 +46,8 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='MySpeedBusiness',
     debug=False,
     bootloader_ignore_signals=False,
@@ -67,8 +61,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    workpath=str(build_root / "exe"),
-    distpath=str(build_root / "exe"),
 )
 
 coll = COLLECT(

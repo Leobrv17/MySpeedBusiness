@@ -36,8 +36,7 @@ La création de binaires autonomes s'appuie sur [PyInstaller](https://pyinstalle
    python -m PyInstaller --clean packaging/msb.spec
    ```
    Sous Windows natif, l'équivalent PowerShell est `py -m PyInstaller --clean packaging/msb.spec`.
-3. Les exécutables sont générés dans `dist/bundle/MySpeedBusiness/` (le binaire
-   intermédiaire `dist/MySpeedBusiness` créé par PyInstaller n'est pas utilisé) :
+3. Les exécutables sont générés dans `dist/MySpeedBusiness/` :
    - `MySpeedBusiness.exe` pour Windows,
    - `MySpeedBusiness` pour macOS et Linux.
 
