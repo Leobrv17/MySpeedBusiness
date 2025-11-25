@@ -11,6 +11,7 @@ import sys
 
 spec_path = pathlib.Path(globals().get("__file__", sys.argv[0])).resolve()
 project_root = spec_path.parent.parent
+is_macos = sys.platform == "darwin"
 
 # Emplacements de sortie explicites
 build_root = project_root / "build" / "pyinstaller"
@@ -63,8 +64,17 @@ exe = EXE(
     entitlements_file=None,
 )
 
+target = exe
+if is_macos:
+    target = BUNDLE(
+        exe,
+        name="MySpeedBusiness.app",
+        icon=None,
+        bundle_identifier="com.myspeedbusiness.app",
+    )
+
 coll = COLLECT(
-    exe,
+    target,
     a.binaries,
     a.zipfiles,
     a.datas,
