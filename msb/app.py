@@ -4,7 +4,7 @@ from pathlib import Path
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
-from msb.core.config import load_config
+from msb.core.config import get_resources_root, load_config
 from msb.core.logging import setup_logging
 from msb.core.constants import APP_NAME, APP_VERSION
 from msb.services.import_service import ImportService
@@ -16,7 +16,8 @@ from msb.ui.theme import ThemeManager   # ✅
 def main() -> int:
     app = QApplication(sys.argv)
 
-    app_icon = Path(__file__).resolve().parent.parent / "img" / "msb_logo.png"
+    resources_root = get_resources_root()
+    app_icon = resources_root / "img" / "msb_logo.png"
     app.setWindowIcon(QIcon(str(app_icon)))
 
     cfg = load_config()
@@ -29,7 +30,7 @@ def main() -> int:
     export_svc = ExportService(persistence=persistence)
     win = MainWindow(import_service=import_svc, export_service=export_svc, persistence=persistence)
 
-    dark_qss = Path("msb/ui/style_dark.qss")
+    dark_qss = resources_root / "msb" / "ui" / "style_dark.qss"
     theme_mgr = ThemeManager(app, light_qss=cfg.theme_path, dark_qss=dark_qss)
     app.installEventFilter(theme_mgr)
     theme_mgr.auto_apply()
