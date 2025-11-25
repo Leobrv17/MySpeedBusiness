@@ -66,7 +66,8 @@ exe = EXE(
 
 target = exe
 if is_macos:
-    target = BUNDLE(
+    # BUNDLE construit le .app mais COLLECT doit recevoir un EXE.
+    mac_bundle = BUNDLE(
         exe,
         name="MySpeedBusiness.app",
         icon=None,
@@ -74,7 +75,7 @@ if is_macos:
     )
 
 coll = COLLECT(
-    target,
+    exe,
     a.binaries,
     a.zipfiles,
     a.datas,

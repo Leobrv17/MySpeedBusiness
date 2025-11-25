@@ -41,6 +41,12 @@ La création de binaires autonomes s'appuie sur [PyInstaller](https://pyinstalle
    - `MySpeedBusiness.app` pour macOS (double-cliquez sur l'app pour éviter l'ouverture d'un terminal),
    - `MySpeedBusiness` pour Linux.
 
+   Sous macOS, si un avertissement `codesign ... resource fork ... not allowed` apparaît, nettoyez et signez manuellement :
+   ```bash
+   xattr -cr dist/MySpeedBusiness.app
+   codesign --deep --force --sign - --timestamp --options runtime dist/MySpeedBusiness.app
+   ```
+
 Au premier lancement, un dossier `data/` est créé à côté de l'exécutable pour stocker les bases SQLite, journaux et exports générés.
 
 ## Exécuter les tests
