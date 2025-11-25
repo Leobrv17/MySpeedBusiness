@@ -94,9 +94,13 @@ class Persistence:
                 "session_count": evt.session_count,
                 "dur": evt.session_duration_minutes,
                 "trans": evt.transition_minutes,
+                "pause_count": evt.pause_count or 0,
+                "pause_minutes": evt.pause_minutes or 0,
             }
 
-    def update_event_params(self, *, num_tables=None, cap_min=None, cap_max=None, session_count=None, dur=None, trans=None):
+    def update_event_params(self, *, num_tables=None, cap_min=None, cap_max=None, session_count=None, dur=None,
+                            trans=None,
+                            pause_count=None, pause_minutes=None):
         self._require()
         with self.session_scope() as s:
             evt = s.get(EventORM, self.event_id)
@@ -106,6 +110,8 @@ class Persistence:
             if session_count is not None: evt.session_count = int(session_count)
             if dur is not None: evt.session_duration_minutes = int(dur)
             if trans is not None: evt.transition_minutes = int(trans)
+            if pause_count is not None: evt.pause_count = int(pause_count)
+            if pause_minutes is not None: evt.pause_minutes = int(pause_minutes)
 
     # --- participants
     def list_participants(self):
@@ -186,3 +192,11 @@ class Persistence:
         for r in rows:
             plan[r.session_index][r.table_index].append(r.participant_id)
         return plan
+
+    def update_event_general(self, *, name=None, date_start=None, date_end=None):
+        self._require()
+        with self.session_scope() as s:
+            evt = s.get(EventORM, self.event_id)
+            if name is not None: evt.name = str(name).strip()
+            if date_start is not None: evt.date_start = date_start
+            if date_end is not None: evt.date_end = date_end
