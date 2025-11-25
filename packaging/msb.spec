@@ -21,7 +21,7 @@ RESOURCE_DATAS = [
 ]
 
 a = Analysis(
-    ['msb/app.py'],
+    [str(project_root / "msb" / "app.py")],
     pathex=[str(project_root)],
     binaries=[],
     datas=[(str(src), dest) for src, dest in RESOURCE_DATAS],
