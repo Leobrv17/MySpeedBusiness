@@ -146,7 +146,7 @@ class ExportService:
         Génère un PDF contenant un badge par participant.
 
         Format demandé :
-        - Nom de la réunion + logo BNI
+        - Nom de la réunion + logo MySpeedBusiness
         - Nom & prénom, métier, suffixe « (Invité) » si applicable
         - Table assignée pour chaque session, dans l'ordre
         """
@@ -180,7 +180,7 @@ class ExportService:
     def _resolve_logo_path(self) -> Path | None:
         if self.logo_path:
             return Path(self.logo_path)
-        default = Path(__file__).resolve().parents[2] / "img" / "bni_logo.png"
+        default = Path(__file__).resolve().parents[2] / "img" / "msb_logo.png"
         return default if default.exists() else None
 
     def _build_badges(self, participants: Iterable, plan: list, session_count: int) -> list[BadgeInfo]:
