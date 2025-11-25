@@ -11,6 +11,12 @@ import sys
 
 spec_path = pathlib.Path(globals().get("__file__", sys.argv[0])).resolve()
 project_root = spec_path.parent.parent
+
+# Emplacements de sortie explicites pour éviter les collisions entre le binaire
+# intermédiaire (EXE) et le dossier final créé par COLLECT.
+build_root = project_root / "build" / "pyinstaller"
+dist_root = project_root / "dist"
+
 block_cipher = None
 
 RESOURCE_DATAS = [
@@ -58,6 +64,8 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    workpath=str(build_root / "exe"),
+    distpath=str(build_root / "exe"),
 )
 
 coll = COLLECT(
@@ -69,4 +77,6 @@ coll = COLLECT(
     upx=True,
     upx_exclude=[],
     name='MySpeedBusiness',
+    workpath=str(build_root / "collect"),
+    distpath=str(dist_root),
 )
