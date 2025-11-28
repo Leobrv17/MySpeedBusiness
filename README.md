@@ -23,6 +23,32 @@ python -m msb.app
 ```
 Un dossier `data/` est créé automatiquement pour stocker les journaux et les fichiers générés. Sous certains systèmes, l'affichage peut nécessiter les paquets supplémentaires propres à Qt (bibliothèques système ou variables d'environnement, par exemple `QT_QPA_PLATFORM=xcb` sous Linux minimal).
 
+## Générer des exécutables Windows / macOS / Linux
+
+La création de binaires autonomes s'appuie sur [PyInstaller](https://pyinstaller.org/). Les ressources nécessaires (icônes, feuilles de style) sont déjà référencées dans `packaging/msb.spec` et accessibles dans l'application grâce à la détection automatique du dossier de ressources.
+
+1. Installez PyInstaller en plus des dépendances applicatives :
+   ```bash
+   pip install -r requirements.txt pyinstaller
+   ```
+2. Depuis la racine du dépôt, lancez la construction (commande identique sur Linux/macOS/WSL) :
+   ```bash
+   python -m PyInstaller --clean packaging/msb.spec
+   ```
+   Sous Windows natif, l'équivalent PowerShell est `py -m PyInstaller --clean packaging/msb.spec`.
+3. Les exécutables sont générés dans `dist/MySpeedBusiness/` :
+   - `MySpeedBusiness.exe` pour Windows (lancement sans console),
+   - `MySpeedBusiness.app` pour macOS (double-cliquez sur l'app pour éviter l'ouverture d'un terminal),
+   - `MySpeedBusiness` pour Linux.
+
+   Sous macOS, si un avertissement `codesign ... resource fork ... not allowed` apparaît, nettoyez et signez manuellement :
+   ```bash
+   xattr -cr dist/MySpeedBusiness.app
+   codesign --deep --force --sign - --timestamp --options runtime dist/MySpeedBusiness.app
+   ```
+
+Au premier lancement, un dossier `data/` est créé à côté de l'exécutable pour stocker les bases SQLite, journaux et exports générés.
+
 ## Exécuter les tests
 
 La suite de tests utilise `pytest` et couvre notamment l'algorithme de planification des tables.
