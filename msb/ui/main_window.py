@@ -1,7 +1,6 @@
 from __future__ import annotations
 import logging
 from pathlib import Path
-from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -10,7 +9,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QStatusBar,
     QTabWidget,
-    QToolBar,
     QVBoxLayout,
     QWidget,
 )
@@ -72,12 +70,11 @@ class MainWindow(QMainWindow):
         self.status.addPermanentWidget(self.lbl_event)
         self.status.addPermanentWidget(self.lbl_ratio)
 
-        # Menus & Toolbar
+        # Menus
         self._create_actions()
         self._create_menus()
-        self._create_toolbar()
 
-    # --- Actions/menus/toolbar
+    # --- Actions/menus
     def _create_actions(self) -> None:
         self.act_new = QAction("Nouvelle réunion…", self); self.act_new.setShortcut(QKeySequence.New)
         self.act_open = QAction("Ouvrir…", self); self.act_open.setShortcut(QKeySequence.Open)
@@ -118,22 +115,6 @@ class MainWindow(QMainWindow):
         m_export.addAction(self.act_export_excel)
         m_export.addAction(self.act_export_template)
         m_export.addAction(self.act_export_badges)
-
-    def _create_toolbar(self) -> None:
-        tb = QToolBar("Actions", self)
-        tb.setMovable(False)
-        tb.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        self.addToolBar(Qt.TopToolBarArea, tb)
-        tb.addAction(self.act_new)
-        tb.addAction(self.act_open)
-        tb.addAction(self.act_close)
-        tb.addSeparator()
-        tb.addAction(self.act_import_excel)
-        tb.addAction(self.act_import_ui)
-        tb.addSeparator()
-        tb.addAction(self.act_export_excel)
-        tb.addAction(self.act_export_template)
-        tb.addAction(self.act_export_badges)
 
     # --- Handlers
     def on_import_excel(self):
