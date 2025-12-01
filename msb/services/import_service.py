@@ -93,6 +93,9 @@ class ImportService:
             return ""
         text = str(value).strip().lower()
         text = "".join(c for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) != "Mn")
+        # Ignore additional hints such as "(oui/non)" that may appear in the header
+        if "(" in text:
+            text = text.split("(", 1)[0].strip()
         return text
 
     def _map_columns(self, header: list[str]) -> dict[str, int]:
@@ -118,8 +121,14 @@ class ImportService:
             return False
         if isinstance(value, (int, float)):
             return bool(value)
-        text = str(value).strip().lower()
-        return text in {"oui", "yes", "true", "1", "y", "o"}
+        text = str(value).strip().casefold()
+        truthy = {"oui", "yes", "true", "1", "y", "o"}
+        falsy = {"non", "no", "false", "0", "n"}
+        if text in truthy:
+            return True
+        if text in falsy:
+            return False
+        return False
 
     def _read_cell(self, row: tuple, index: int | None) -> str:
         if index is None:
