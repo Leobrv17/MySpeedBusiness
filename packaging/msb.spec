@@ -50,6 +50,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name='MySpeedBusiness',
+    icon=str(project_root / "img" / "msb_logo.ico") if not is_macos else None,
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
