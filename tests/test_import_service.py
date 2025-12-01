@@ -38,3 +38,23 @@ def test_import_excel_respects_boolean_columns(tmp_path):
     assert added == 2
     assert any(p.first_name == "Alice" and p.is_guest and not p.is_table_lead for p in participants)
     assert any(p.first_name == "Bob" and p.is_table_lead and not p.is_guest for p in participants)
+
+
+def test_import_excel_booleans_are_case_insensitive(tmp_path):
+    persistence = _make_event(tmp_path)
+    importer = ImportService(persistence)
+
+    excel_path = tmp_path / "participants.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Prénom", "Nom", "Métier", "Visiteur", "Chef de table"])
+    ws.append(["Claire", "Durand", "Développeuse", "OUI", "Non"])
+    ws.append(["Denis", "Martin", "Coach", "o", "N"])
+    wb.save(excel_path)
+
+    added = importer.import_from_excel(excel_path)
+    participants = persistence.list_participants()
+
+    assert added == 2
+    assert any(p.first_name == "Claire" and p.is_guest and not p.is_table_lead for p in participants)
+    assert any(p.first_name == "Denis" and p.is_guest and not p.is_table_lead for p in participants)
