@@ -9,9 +9,41 @@ fichiers via ``get_resources_root``.
 import pathlib
 import sys
 
+try:
+    from PIL import Image
+except ImportError as exc:  # pragma: no cover - erreur claire en phase build
+    raise SystemExit(
+        "Pillow est requis pour générer les icônes .ico/.icns lors du packaging PyInstaller."
+    ) from exc
+
 spec_path = pathlib.Path(globals().get("__file__", sys.argv[0])).resolve()
 project_root = spec_path.parent.parent
+icon_root = project_root / "build" / "pyinstaller" / "icons"
 is_macos = sys.platform == "darwin"
+
+
+def build_icon(target: pathlib.Path, fmt: str) -> pathlib.Path:
+    """Génère un fichier icône à partir du PNG source.
+
+    On évite de versionner des binaires .ico/.icns : ils sont produits à la
+    volée dans ``build/pyinstaller/icons`` pour Windows et macOS.
+    """
+
+    source_png = project_root / "img" / "msb_logo.png"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    image = Image.open(source_png)
+
+    save_kwargs = {}
+    if fmt == "ICO":
+        # Nécessaire pour que l'icône apparaisse correctement dans la barre des tâches
+        save_kwargs["sizes"] = [(256, 256)]
+
+    image.save(target, format=fmt, **save_kwargs)
+    return target
+
+
+app_icon = build_icon(icon_root / "msb_logo.ico", "ICO")
+app_icon_macos = build_icon(icon_root / "msb_logo.icns", "ICNS")
 
 # Emplacements de sortie explicites
 build_root = project_root / "build" / "pyinstaller"
@@ -62,6 +94,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=str(app_icon),
 )
 
 target = exe
@@ -70,12 +103,13 @@ if is_macos:
     mac_bundle = BUNDLE(
         exe,
         name="MySpeedBusiness.app",
-        icon=None,
+        icon=str(app_icon_macos),
         bundle_identifier="com.myspeedbusiness.app",
     )
+    target = mac_bundle
 
 coll = COLLECT(
-    exe,
+    target,
     a.binaries,
     a.zipfiles,
     a.datas,
