@@ -290,7 +290,7 @@ class ExportService:
     ) -> None:
         padding = 6 * mm
         box_gap = 2 * mm
-        strip_height = 16 * mm
+        strip_height = 10 * mm
         bottom_bar_height = 10 * mm
 
         c.saveState()
@@ -298,21 +298,21 @@ class ExportService:
 
         # Contour du badge
         c.setLineWidth(1)
-        c.roundRect(0, 0, width, height, radius=4 * mm, stroke=1, fill=0)
+        c.rect(0, 0, width, height, stroke=1, fill=0)
 
         y = height - padding
 
         # En-tête de réunion
         c.setFillColor(colors.HexColor("#c62828"))
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(padding, y - 8, event_name or "")
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(padding, y - 2, event_name or "")
 
         if logo_reader:
             logo_w, logo_h = logo_size
             c.drawImage(
                 logo_reader,
                 width - padding - logo_w,
-                height - padding - logo_h,
+                height - padding - logo_h+20,
                 width=logo_w,
                 height=logo_h,
                 preserveAspectRatio=True,
@@ -322,28 +322,44 @@ class ExportService:
         # Nom complet
         y -= 22
         name_line = badge.full_name
-        if badge.is_guest:
-            name_line = f"{name_line} (Invité)"
         c.setFillColor(colors.black)
         c.setFont("Helvetica-Bold", 16)
         c.drawString(padding, y, name_line)
 
-        # Métier
-        y -= 14
-        c.setFont("Helvetica", 11)
-        c.drawString(padding, y, badge.job)
-
-        # Bandeau sessions / tables
         y -= 18
-        c.setFont("Helvetica-Bold", 9)
-        c.drawString(padding, y, "Sessions / Tables")
+        c.setFont("Helvetica", 11)
+
+        job_text = badge.job
+
+        if len(job_text) > 45:
+            # On cherche le dernier espace / / ou . avant le 50e caractère
+            break_pos = -1
+            max_index = min(45, len(job_text) - 1)
+
+            for i in range(max_index, -1, -1):
+                if job_text[i] in (" ", "/", "."):
+                    break_pos = i
+                    break
+
+            # Si on n'a rien trouvé, on coupe "brut" à 50
+            if break_pos == -1:
+                break_pos = 45
+
+            ligne1 = job_text[:break_pos].rstrip()
+            ligne2 = job_text[break_pos:].lstrip()
+
+            c.drawString(padding, y, ligne1)
+            y -= 15
+            c.drawString(padding, y, ligne2)
+        else:
+            c.drawString(padding, y, job_text)
 
         if badge.tables:
             count = len(badge.tables)
             avail_width = width - 2 * padding - (count - 1) * box_gap
             box_width = avail_width / count if count else 0
             box_height = strip_height
-            base_y = y - box_height - 4
+            base_y = y - box_height - 35
             for idx, table in enumerate(badge.tables):
                 color = palette[idx % len(palette)] if palette else colors.lightgrey
                 x = padding + idx * (box_width + box_gap)
@@ -354,7 +370,7 @@ class ExportService:
                 c.setFont("Helvetica-Bold", 10)
                 c.drawCentredString(x + box_width / 2, base_y + box_height - 8, f"S{idx + 1}")
                 c.setFont("Helvetica", 9)
-                c.drawCentredString(x + box_width / 2, base_y + 8, f"Table {table}")
+                c.drawCentredString(x + box_width / 2, base_y + 8, f"{table}")
             y = base_y - 6
         else:
             y -= 10
@@ -362,11 +378,11 @@ class ExportService:
             c.drawString(padding, y, "Aucun plan de table enregistré.")
 
         # Bandeau d'état (membre / invité)
-        c.setFillColor(colors.HexColor("#b86d1f"))
+        c.setFillColor(colors.HexColor("#b86d1f")) if badge.is_guest else c.setFillColor(colors.HexColor("#CF2030"))
         c.rect(0, 0, width, bottom_bar_height, stroke=0, fill=1)
         c.setFillColor(colors.white)
         c.setFont("Helvetica-Bold", 12)
-        status = "Invité" if badge.is_guest else "Membre"
+        status = "Visiteur" if badge.is_guest else "Membre"
         c.drawCentredString(width / 2, bottom_bar_height / 2 - 3, status)
 
         c.restoreState()
