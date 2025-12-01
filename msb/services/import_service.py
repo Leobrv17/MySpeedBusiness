@@ -93,6 +93,9 @@ class ImportService:
             return ""
         text = str(value).strip().lower()
         text = "".join(c for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) != "Mn")
+        # Ignore additional hints such as "(oui/non)" that may appear in the header
+        if "(" in text:
+            text = text.split("(", 1)[0].strip()
         return text
 
     def _map_columns(self, header: list[str]) -> dict[str, int]:
