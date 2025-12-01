@@ -17,7 +17,8 @@ def main() -> int:
     app = QApplication(sys.argv)
 
     resources_root = get_resources_root()
-    app_icon = resources_root / "img" / "msb_logo.png"
+    icon_name = "msb_logo.ico" if sys.platform.startswith("win") else "msb_logo.png"
+    app_icon = resources_root / "img" / icon_name
     app.setWindowIcon(QIcon(str(app_icon)))
 
     cfg = load_config()
