@@ -21,6 +21,7 @@ block_cipher = None
 
 RESOURCE_DATAS = [
     (project_root / "img" / "msb_logo.png", "img"),
+    (project_root / "img" / "msb_logo.ico", "img"),
     (project_root / "img" / "bni_logo.png", "img"),
     (project_root / "msb" / "ui" / "style.qss", "msb/ui"),
     (project_root / "msb" / "ui" / "style_dark.qss", "msb/ui"),

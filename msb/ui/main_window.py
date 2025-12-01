@@ -1,6 +1,7 @@
 from __future__ import annotations
 import logging
 from pathlib import Path
+import sys
 from PySide6.QtGui import QAction, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -23,7 +24,9 @@ from msb.ui.pages.participants_page import ParticipantsPage
 from msb.ui.pages.settings_page import SettingsPage
 from msb.ui.pages.plan_page import PlanPage
 
-APP_ICON = Path(__file__).resolve().parent.parent / "img" / "msb_logo.png"
+APP_ICON = Path(__file__).resolve().parent.parent / "img" / (
+    "msb_logo.ico" if sys.platform.startswith("win") else "msb_logo.png"
+)
 
 log = logging.getLogger(__name__)
 
