@@ -238,14 +238,26 @@ class ExportService:
             logo_reader = ImageReader(str(logo_path))
 
         palette = [
-            colors.HexColor("#ffd84a"),
+            colors.HexColor("#4fc3f7"),  # Table 1
+            colors.HexColor("#ffd84a"),  # Table 2 (jaune)
             colors.HexColor("#f06292"),
-            colors.HexColor("#4fc3f7"),
             colors.HexColor("#aed581"),
             colors.HexColor("#ff8a65"),
             colors.HexColor("#f48fb1"),
             colors.HexColor("#29b6f6"),
             colors.HexColor("#7986cb"),
+            colors.HexColor("#80cbc4"),
+            colors.HexColor("#ffcc80"),
+            colors.HexColor("#ce93d8"),
+            colors.HexColor("#90caf9"),
+            colors.HexColor("#a5d6a7"),
+            colors.HexColor("#ffab91"),
+            colors.HexColor("#bcaaa4"),
+            colors.HexColor("#b0bec5"),
+            colors.HexColor("#c5e1a5"),
+            colors.HexColor("#ffe082"),
+            colors.HexColor("#ffb74d"),
+            colors.HexColor("#ba68c8"),
         ]
 
         for idx, badge in enumerate(badges):
@@ -364,7 +376,15 @@ class ExportService:
             box_height = strip_height
             base_y = y - box_height - 35
             for idx, table in enumerate(badge.tables):
-                color = palette[idx % len(palette)] if palette else colors.lightgrey
+                color_index = None
+                try:
+                    table_number = int(table)
+                    if table_number > 0:
+                        color_index = (table_number - 1) % len(palette)
+                except (TypeError, ValueError):
+                    color_index = None
+
+                color = palette[color_index] if color_index is not None else colors.lightgrey
                 x = padding + idx * (box_width + box_gap)
                 c.setFillColor(color)
                 c.roundRect(x, base_y, box_width, box_height, radius=2 * mm, stroke=0, fill=1)
