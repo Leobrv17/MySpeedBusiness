@@ -211,12 +211,12 @@ class ExportService:
         return badges
 
     def _render_badges(
-        self,
-        *,
-        output_path: Path,
-        event_name: str,
-        badges: list[BadgeInfo],
-        logo_path: Path | None,
+            self,
+            *,
+            output_path: Path,
+            event_name: str,
+            badges: list[BadgeInfo],
+            logo_path: Path | None,
     ) -> None:
         c = canvas.Canvas(str(output_path), pagesize=A4)
         page_width, page_height = A4
@@ -275,18 +275,18 @@ class ExportService:
         c.save()
 
     def _draw_badge(
-        self,
-        *,
-        c: canvas.Canvas,
-        origin_x: float,
-        origin_y: float,
-        width: float,
-        height: float,
-        badge: BadgeInfo,
-        event_name: str,
-        palette: list,
-        logo_reader: ImageReader | None,
-        logo_size: tuple[float, float],
+            self,
+            *,
+            c: canvas.Canvas,
+            origin_x: float,
+            origin_y: float,
+            width: float,
+            height: float,
+            badge: BadgeInfo,
+            event_name: str,
+            palette: list,
+            logo_reader: ImageReader | None,
+            logo_size: tuple[float, float],
     ) -> None:
         padding = 6 * mm
         box_gap = 2 * mm
@@ -305,14 +305,14 @@ class ExportService:
         # En-tête de réunion
         c.setFillColor(colors.HexColor("#c62828"))
         c.setFont("Helvetica-Bold", 16)
-        c.drawString(padding, y - 2, event_name or "")
+        c.drawString(padding + 40, y - 2, event_name or "")
 
         if logo_reader:
             logo_w, logo_h = logo_size
             c.drawImage(
                 logo_reader,
-                width - padding - logo_w,
-                height - padding - logo_h+20,
+                -padding/2,
+                height - padding - logo_h + 20,
                 width=logo_w,
                 height=logo_h,
                 preserveAspectRatio=True,
@@ -320,13 +320,13 @@ class ExportService:
             )
 
         # Nom complet
-        y -= 22
+        y -= 25
         name_line = badge.full_name
         c.setFillColor(colors.black)
         c.setFont("Helvetica-Bold", 16)
         c.drawString(padding, y, name_line)
 
-        y -= 18
+        y -= 23
         c.setFont("Helvetica", 11)
 
         job_text = badge.job
@@ -351,8 +351,11 @@ class ExportService:
             c.drawString(padding, y, ligne1)
             y -= 15
             c.drawString(padding, y, ligne2)
+            y += 15
         else:
             c.drawString(padding, y, job_text)
+
+        y += 10
 
         if badge.tables:
             count = len(badge.tables)
@@ -378,9 +381,7 @@ class ExportService:
             c.drawString(padding, y, "Aucun plan de table enregistré.")
 
         # Bandeau d'état (membre / invité)
-        c.setFillColor(colors.HexColor("#b86d1f")) if badge.is_guest else c.setFillColor(colors.HexColor("#CF2030"))
-        c.rect(0, 0, width, bottom_bar_height, stroke=0, fill=1)
-        c.setFillColor(colors.white)
+        c.setFillColor(colors.HexColor("#c62828"))
         c.setFont("Helvetica-Bold", 12)
         status = "Visiteur" if badge.is_guest else "Membre"
         c.drawCentredString(width / 2, bottom_bar_height / 2 - 3, status)
