@@ -27,8 +27,23 @@ def get_resources_root() -> Path:
 
     return Path(__file__).resolve().parent.parent.parent
 
+
+def get_run_root() -> Path:
+    """Retourne le dossier contenant l'exécutable ou le projet en développement.
+
+    Lorsqu'on exécute un binaire PyInstaller, le répertoire courant peut varier
+    selon le mode de lancement (double-clic, terminal…). Pour garantir une
+    zone d'écriture stable pour les logs et bases de données, on déduit la
+    racine à partir du chemin de l'exécutable gelé.
+    """
+
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+
+    return Path(__file__).resolve().parent.parent.parent
+
 def load_config() -> AppConfig:
-    data_dir = Path.cwd() / "data"
+    data_dir = get_run_root() / "data"
     theme_path = get_resources_root() / "msb" / "ui" / "style.qss"
     data_dir.mkdir(parents=True, exist_ok=True)
     return AppConfig(data_dir=data_dir, theme_path=theme_path)
